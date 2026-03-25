@@ -19,30 +19,26 @@ I just wanted a simple app where I could see all my projects, hit play, and chec
 - **Context menu** run any script, open in VS Code, open in browser, show in explorer
 - **Persistent** your projects and commands are saved locally
 
-## Getting Started
+## Download
 
-### Prerequisites
+Grab the latest release for your platform from [Releases](https://github.com/evil1morty/devdock/releases).
 
-- [Node.js](https://nodejs.org/) 18+
-- [Rust](https://rustup.rs/)
-- Windows: [VS Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with C++ workload
+| Platform | File |
+|----------|------|
+| Windows | `.exe` or `.msi` |
+| macOS | `.dmg` |
+| Linux | `.deb` or `.AppImage` |
 
-### Run
+## Build from Source
+
+Requires [Node.js](https://nodejs.org/) 18+, [Rust](https://rustup.rs/), and on Windows [VS Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with C++ workload.
 
 ```bash
 git clone https://github.com/evil1morty/devdock.git
 cd devdock
 npm install
-npx tauri dev
-```
-
-### Build
-
-```bash
 npx tauri build
 ```
-
-Output: `src-tauri/target/release/devdock.exe` (~9MB)
 
 ## Stack
 
