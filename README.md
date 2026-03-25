@@ -2,7 +2,7 @@
 
 A tiny desktop app to manage your dev servers. One click to start, one click to stop.
 
-![DevDock](image.webp)
+![DevDock](image.png)
 
 ## Why
 
