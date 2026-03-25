@@ -1,0 +1,14 @@
+{
+  "name": "devdock",
+  "version": "0.1.0",
+  "description": "A lightweight desktop app to manage all your dev servers in one place",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1"
+  }
+}
