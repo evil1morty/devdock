@@ -61,8 +61,8 @@ body {
   gap: 8px;
 }
 .logo-icon {
-  color: var(--green);
-  font-size: 11px;
+  width: 18px;
+  height: 18px;
 }
 
 .header-actions {
@@ -72,17 +72,22 @@ body {
 }
 
 #search {
-  padding: 5px 10px;
+  height: 30px;
+  padding: 0 10px;
   font-size: 12px;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   outline: none;
-  width: 140px;
+  width: 160px;
   font-family: var(--sans);
+  transition: border .15s, box-shadow .15s;
 }
-#search:focus { border-color: var(--accent); }
+#search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, .25);
+}
 
 #btn-add {
   background: var(--accent);

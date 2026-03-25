@@ -1,13 +1,14 @@
 import { state, getProject, getStatus } from './state.js';
 import { api } from './api.js';
+import { $, el, btn, toggle, closeOnBackdrop } from './dom.js';
 import { render, runCommand } from './dashboard.js';
 import { closeLogPanel } from './logs.js';
 import { openDialog } from './dialog.js';
 
-const $ctx     = document.getElementById('context-menu');
-const $ctxCmds = document.getElementById('ctx-commands');
+const $ctx     = $('context-menu');
+const $ctxCmds = $('ctx-commands');
 
-// ── Open ───────────────────────────────────────────
+// ── Open / Close ───────────────────────────────────
 
 export function openContextMenu(id, e) {
   state.ctxProjectId = id;
@@ -19,37 +20,32 @@ export function openContextMenu(id, e) {
   const showCmds = proj && proj.commands.length > 0 && !s.running;
   if (showCmds) {
     proj.commands.forEach(c => {
-      const btn = document.createElement('button');
-      btn.className = 'ctx-cmd';
-      btn.innerHTML = `<span class="ctx-icon">&#9654;</span> ${c.label}`;
-      btn.addEventListener('click', () => {
+      const b = el('button', 'ctx-cmd');
+      b.innerHTML = `<span class="ctx-icon">&#9654;</span> ${c.label}`;
+      b.addEventListener('click', () => {
         runCommand(id, c.label, c.cmd, proj.directory);
         closeContextMenu();
       });
-      $ctxCmds.appendChild(btn);
+      $ctxCmds.appendChild(b);
     });
   }
-  document.getElementById('div-cmds').classList.toggle('hidden', !showCmds);
 
-  // Show/hide process controls
-  const stopBtn = $ctx.querySelector('[data-action="stop"]');
-  const restartBtn = $ctx.querySelector('[data-action="restart"]');
-  const browserBtn = $ctx.querySelector('[data-action="browser"]');
-  stopBtn.classList.toggle('hidden', !s.running);
-  restartBtn.classList.toggle('hidden', !s.running);
-  document.getElementById('div-process').classList.toggle('hidden', !s.running);
-  browserBtn.disabled = !s.url;
+  toggle($('div-cmds'), showCmds);
+  toggle($ctx.querySelector('[data-action="stop"]'), s.running);
+  toggle($ctx.querySelector('[data-action="restart"]'), s.running);
+  toggle($('div-process'), s.running);
+  $ctx.querySelector('[data-action="browser"]').disabled = !s.url;
 
   // Position
   const x = Math.min(e.clientX, window.innerWidth - 200);
   const y = Math.min(e.clientY, window.innerHeight - 300);
   $ctx.style.left = x + 'px';
   $ctx.style.top = y + 'px';
-  $ctx.classList.remove('hidden');
+  toggle($ctx, true);
 }
 
 export function closeContextMenu() {
-  $ctx.classList.add('hidden');
+  toggle($ctx, false);
   state.ctxProjectId = null;
 }
 
@@ -57,10 +53,10 @@ export function closeContextMenu() {
 
 document.addEventListener('click', closeContextMenu);
 
-$ctx.querySelectorAll('.ctx-item').forEach(btn => {
-  btn.addEventListener('click', e => {
+$ctx.querySelectorAll('.ctx-item').forEach(b => {
+  b.addEventListener('click', e => {
     e.stopPropagation();
-    const action = btn.dataset.action;
+    const action = b.dataset.action;
     if (!state.ctxProjectId) return;
 
     const id = state.ctxProjectId;
@@ -107,35 +103,21 @@ $ctx.querySelectorAll('.ctx-item').forEach(btn => {
 
 // ── Confirm dialog ─────────────────────────────────
 
-const $confOver = document.getElementById('confirm-overlay');
-const $confMsg  = document.getElementById('confirm-msg');
+const $confOver = $('confirm-overlay');
+const $confMsg  = $('confirm-msg');
 let confirmCb = null;
 
 export function showConfirm(msg, cb) {
   $confMsg.textContent = msg;
   confirmCb = cb;
-  $confOver.classList.remove('hidden');
+  toggle($confOver, true);
 }
-
-document.getElementById('confirm-yes').addEventListener('click', () => {
-  $confOver.classList.add('hidden');
-  if (confirmCb) confirmCb();
-  confirmCb = null;
-});
-
-document.getElementById('confirm-no').addEventListener('click', () => {
-  $confOver.classList.add('hidden');
-  confirmCb = null;
-});
-
-$confOver.addEventListener('click', e => {
-  if (e.target === $confOver) {
-    $confOver.classList.add('hidden');
-    confirmCb = null;
-  }
-});
 
 export function closeConfirm() {
-  $confOver.classList.add('hidden');
+  toggle($confOver, false);
   confirmCb = null;
 }
+
+$('confirm-yes').addEventListener('click', () => { closeConfirm(); if (confirmCb) confirmCb(); });
+$('confirm-no').addEventListener('click', closeConfirm);
+closeOnBackdrop($confOver, closeConfirm);

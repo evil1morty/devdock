@@ -1,12 +1,13 @@
 import { state } from './state.js';
 import { api } from './api.js';
+import { $, el, btn, closeOnBackdrop } from './dom.js';
 import { render } from './dashboard.js';
 
-const $overlay  = document.getElementById('dialog-overlay');
-const $dlgTitle = document.getElementById('dialog-title');
-const $inpName  = document.getElementById('inp-name');
-const $inpDir   = document.getElementById('inp-dir');
-const $cmdList  = document.getElementById('cmd-list');
+const $overlay  = $('dialog-overlay');
+const $dlgTitle = $('dialog-title');
+const $inpName  = $('inp-name');
+const $inpDir   = $('inp-dir');
+const $cmdList  = $('cmd-list');
 
 // ── Open / Close ───────────────────────────────────
 
@@ -19,9 +20,7 @@ export function openDialog(id) {
   $inpDir.value = proj ? proj.directory : '';
 
   $cmdList.innerHTML = '';
-  if (proj) {
-    proj.commands.forEach(c => addCmdRow(c.label, c.cmd));
-  }
+  if (proj) proj.commands.forEach(c => addCmdRow(c.label, c.cmd));
 
   $overlay.classList.remove('hidden');
   $inpDir.focus();
@@ -39,91 +38,108 @@ async function scanDirectory(dir) {
   $inpDir.value = dir;
   try {
     const result = await api.scanPackageJson(dir);
-    $inpName.value = result.name;
+    if (!$inpName.value.trim()) $inpName.value = result.name;
     $cmdList.innerHTML = '';
     result.commands.forEach(c => addCmdRow(c.label, c.cmd));
   } catch (_) {
-    if (!$inpName.value) $inpName.value = dir.split(/[\\/]/).pop() || '';
-    $cmdList.innerHTML = '';
-    addCmdRow('dev', 'npm run dev');
-    addCmdRow('build', 'npm run build');
+    if (!$inpName.value.trim()) $inpName.value = dir.split(/[\\/]/).pop() || '';
+    if ($cmdList.children.length === 0) {
+      addCmdRow('dev', 'npm run dev');
+      addCmdRow('build', 'npm run build');
+    }
   }
 }
 
 // ── Command row builder ────────────────────────────
 
-function addCmdRow(label, cmd) {
-  const row = document.createElement('div');
-  row.className = 'cmd-row';
+function clearErrorOnInput(input) {
+  input.addEventListener('input', () => input.classList.remove('input-error'));
+}
 
-  const inpLabel = document.createElement('input');
+function addCmdRow(label, cmd) {
+  const row = el('div', 'cmd-row');
+
+  const inpLabel = el('input');
   inpLabel.type = 'text';
   inpLabel.placeholder = 'Label';
   inpLabel.value = label || '';
+  clearErrorOnInput(inpLabel);
 
-  const inpCmd = document.createElement('input');
+  const inpCmd = el('input');
   inpCmd.type = 'text';
   inpCmd.placeholder = 'npm run dev';
   inpCmd.value = cmd || '';
+  clearErrorOnInput(inpCmd);
 
-  const rm = document.createElement('button');
-  rm.className = 'rm-cmd';
+  const rm = btn('rm-cmd', null, () => row.remove());
   rm.innerHTML = '&times;';
-  rm.addEventListener('click', () => row.remove());
 
-  row.appendChild(inpLabel);
-  row.appendChild(inpCmd);
-  row.appendChild(rm);
+  row.append(inpLabel, inpCmd, rm);
   $cmdList.appendChild(row);
+}
+
+// ── Validation ─────────────────────────────────────
+
+function validateCommands() {
+  const commands = [];
+  let hasError = false;
+
+  $cmdList.querySelectorAll('.cmd-row').forEach(row => {
+    const [inpLabel, inpCmd] = row.querySelectorAll('input');
+    const l = inpLabel.value.trim();
+    const c = inpCmd.value.trim();
+
+    inpLabel.classList.remove('input-error');
+    inpCmd.classList.remove('input-error');
+
+    if (l && c) {
+      commands.push({ label: l, cmd: c });
+    } else if (l && !c) {
+      inpCmd.classList.add('input-error');
+      hasError = true;
+    } else if (!l && c) {
+      inpLabel.classList.add('input-error');
+      hasError = true;
+    }
+  });
+
+  return hasError ? null : commands;
 }
 
 // ── Event handlers ─────────────────────────────────
 
-// Scan button — opens folder picker
-document.getElementById('btn-scan').addEventListener('click', async () => {
+$('btn-scan').addEventListener('click', async () => {
   const folder = await api.pickFolder();
   if (folder) await scanDirectory(folder);
 });
 
-// Auto-scan on paste
 let scanDebounce;
 $inpDir.addEventListener('input', () => {
   $inpDir.classList.remove('input-error');
   clearTimeout(scanDebounce);
   scanDebounce = setTimeout(() => {
     const dir = $inpDir.value.trim();
-    if (dir && (dir.includes('\\') || dir.includes('/'))) {
-      scanDirectory(dir);
-    }
+    if (dir && (dir.includes('\\') || dir.includes('/'))) scanDirectory(dir);
   }, 800);
 });
 
-$inpName.addEventListener('input', () => $inpName.classList.remove('input-error'));
+clearErrorOnInput($inpName);
 
-document.getElementById('btn-add-cmd').addEventListener('click', () => addCmdRow('', ''));
-document.getElementById('btn-cancel').addEventListener('click', closeDialog);
-
-$overlay.addEventListener('click', e => {
-  if (e.target === $overlay) closeDialog();
-});
+$('btn-add-cmd').addEventListener('click', () => addCmdRow('', ''));
+$('btn-cancel').addEventListener('click', closeDialog);
+closeOnBackdrop($overlay, closeDialog);
 
 // Save
-document.getElementById('btn-save').addEventListener('click', async () => {
+$('btn-save').addEventListener('click', async () => {
   const name = $inpName.value.trim();
   const dir = $inpDir.value.trim();
   $inpName.classList.toggle('input-error', !name);
   $inpDir.classList.toggle('input-error', !dir);
   if (!name || !dir) return;
 
-  const commands = [];
-  $cmdList.querySelectorAll('.cmd-row').forEach(row => {
-    const inputs = row.querySelectorAll('input');
-    const l = inputs[0].value.trim();
-    const c = inputs[1].value.trim();
-    if (l && c) commands.push({ label: l, cmd: c });
-  });
+  const commands = validateCommands();
+  if (!commands) return;
 
-  // Detect framework
   let framework = null;
   try {
     const scan = await api.scanPackageJson(dir);
@@ -132,31 +148,15 @@ document.getElementById('btn-save').addEventListener('click', async () => {
 
   if (state.editingId) {
     const proj = state.projects.find(p => p.id === state.editingId);
-    if (proj) {
-      proj.name = name;
-      proj.directory = dir;
-      proj.commands = commands;
-      proj.framework = framework;
-    }
+    if (proj) Object.assign(proj, { name, directory: dir, commands, framework });
   } else {
-    state.projects.push({
-      id: crypto.randomUUID(),
-      name,
-      directory: dir,
-      framework,
-      commands,
-    });
+    state.projects.push({ id: crypto.randomUUID(), name, directory: dir, framework, commands });
   }
 
   await api.saveConfig(state.projects);
-
-  const $search = document.getElementById('search');
-  if (state.projects.length >= 5) $search.classList.remove('hidden');
-
   render();
   closeDialog();
 });
 
-// Add-project buttons on header and empty state
-document.getElementById('btn-add').addEventListener('click', () => openDialog(null));
-document.getElementById('btn-add-empty').addEventListener('click', () => openDialog(null));
+$('btn-add').addEventListener('click', () => openDialog(null));
+$('btn-add-empty').addEventListener('click', () => openDialog(null));

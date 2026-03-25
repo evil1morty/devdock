@@ -1,119 +1,84 @@
-import { state, getProject, getStatus } from './state.js';
+import { state, getStatus } from './state.js';
 import { api } from './api.js';
+import { $, el, btn, toggle, appendLogLine } from './dom.js';
 import { openContextMenu } from './context-menu.js';
 import { openLogPanel } from './logs.js';
 
-const $list  = document.getElementById('project-list');
-const $empty = document.getElementById('empty');
-const $table = document.getElementById('project-table');
-const $search = document.getElementById('search');
+const $list   = $('project-list');
+const $empty  = $('empty');
+const $table  = $('project-table');
+const $search = $('search');
 
 // ── Render ─────────────────────────────────────────
 
 export function render() {
   if (state.projects.length === 0) {
-    $table.classList.add('hidden');
-    $empty.classList.remove('hidden');
+    toggle($table, false);
+    toggle($empty, true);
     return;
   }
-  $table.classList.remove('hidden');
-  $empty.classList.add('hidden');
+  toggle($table, true);
+  toggle($empty, false);
   $list.innerHTML = '';
 
   const filter = $search.value.toLowerCase().trim();
-
   state.projects.forEach(p => {
     if (filter && !p.name.toLowerCase().includes(filter)) return;
     $list.appendChild(createRow(p));
   });
 }
 
-function createRow(project) {
-  const s = getStatus(project.id);
-  const tr = document.createElement('tr');
-  tr.className = 'project-row' + (project.id === state.activeLogId ? ' active' : '');
-  tr.dataset.id = project.id;
+function createRow(p) {
+  const s = getStatus(p.id);
+  const tr = el('tr', 'project-row' + (p.id === state.activeLogId ? ' active' : ''));
+  tr.dataset.id = p.id;
 
   // Status dot
-  const tdStatus = document.createElement('td');
-  const dot = document.createElement('span');
-  dot.className = 'status-dot ' + (s.running ? 'running' : 'stopped');
-  tdStatus.appendChild(dot);
+  const tdStatus = el('td');
+  tdStatus.appendChild(el('span', 'status-dot ' + (s.running ? 'running' : 'stopped')));
 
-  // Name + framework badge
-  const tdName = document.createElement('td');
-  const nameWrap = document.createElement('div');
-  nameWrap.className = 'name-cell';
-
-  const nameSpan = document.createElement('span');
-  nameSpan.className = 'project-name';
-  nameSpan.textContent = project.name;
-  nameWrap.appendChild(nameSpan);
-
-  if (project.framework) {
-    const badge = document.createElement('span');
-    badge.className = 'framework-badge';
-    badge.textContent = project.framework;
-    nameWrap.appendChild(badge);
-  }
+  // Name + framework
+  const tdName = el('td');
+  const nameWrap = el('div', 'name-cell');
+  nameWrap.appendChild(el('span', 'project-name', p.name));
+  if (p.framework) nameWrap.appendChild(el('span', 'framework-badge', p.framework));
   tdName.appendChild(nameWrap);
 
   // URL
-  const tdUrl = document.createElement('td');
+  const tdUrl = el('td');
   if (s.url) {
-    const link = document.createElement('span');
-    link.className = 'url-link';
-    link.textContent = s.url.replace('http://', '');
-    link.addEventListener('click', e => {
-      e.stopPropagation();
-      api.openInBrowser(s.url);
-    });
+    const link = el('span', 'url-link', s.url.replace('http://', ''));
+    link.addEventListener('click', e => { e.stopPropagation(); api.openInBrowser(s.url); });
     tdUrl.appendChild(link);
   } else {
-    const ph = document.createElement('span');
-    ph.className = 'url-placeholder';
-    ph.textContent = s.running ? 'detecting...' : '—';
-    tdUrl.appendChild(ph);
+    tdUrl.appendChild(el('span', 'url-placeholder', s.running ? 'detecting...' : '—'));
   }
 
-  // Play / Stop toggle
-  const tdQuick = document.createElement('td');
-  const playBtn = document.createElement('button');
-  playBtn.className = 'play-btn' + (s.running ? ' running' : '');
-  playBtn.innerHTML = s.running ? '&#9632;' : '&#9654;';
-  playBtn.title = s.running ? 'Stop' : 'Start dev';
-  playBtn.addEventListener('click', e => {
+  // Play / Stop
+  const tdQuick = el('td');
+  const playBtn = btn('play-btn' + (s.running ? ' running' : ''), null, e => {
     e.stopPropagation();
     if (s.running) {
-      api.stopProcess(project.id);
+      api.stopProcess(p.id);
     } else {
-      const devCmd = (project.commands || []).find(c =>
+      const devCmd = (p.commands || []).find(c =>
         ['dev', 'start', 'serve'].includes(c.label)
-      ) || (project.commands || [])[0];
-      if (devCmd) runCommand(project.id, devCmd.label, devCmd.cmd, project.directory);
+      ) || (p.commands || [])[0];
+      if (devCmd) runCommand(p.id, devCmd.label, devCmd.cmd, p.directory);
     }
   });
+  playBtn.innerHTML = s.running ? '&#9632;' : '&#9654;';
+  playBtn.title = s.running ? 'Stop' : 'Start dev';
   tdQuick.appendChild(playBtn);
 
   // 3-dot menu
-  const tdDots = document.createElement('td');
-  const dotsBtn = document.createElement('button');
-  dotsBtn.className = 'dots-btn';
-  dotsBtn.innerHTML = '&#8942;';
-  dotsBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    openContextMenu(project.id, e);
-  });
-  tdDots.appendChild(dotsBtn);
+  const tdDots = el('td');
+  const dots = btn('dots-btn', null, e => { e.stopPropagation(); openContextMenu(p.id, e); });
+  dots.innerHTML = '&#8942;';
+  tdDots.appendChild(dots);
 
-  tr.appendChild(tdStatus);
-  tr.appendChild(tdName);
-  tr.appendChild(tdUrl);
-  tr.appendChild(tdQuick);
-  tr.appendChild(tdDots);
-
-  tr.addEventListener('click', () => openLogPanel(project.id));
-
+  tr.append(tdStatus, tdName, tdUrl, tdQuick, tdDots);
+  tr.addEventListener('click', () => openLogPanel(p.id));
   return tr;
 }
 
@@ -126,8 +91,7 @@ export async function runCommand(id, label, cmd, cwd) {
     await new Promise(r => setTimeout(r, 500));
   }
 
-  // Clear logs if viewing this project
-  const $logOut = document.getElementById('log-output');
+  const $logOut = $('log-output');
   if (id === state.activeLogId) {
     $logOut.innerHTML = '';
     appendLogLine($logOut, `$ ${cmd}`, 'info');
@@ -136,17 +100,8 @@ export async function runCommand(id, label, cmd, cwd) {
   try {
     await api.startProcess(id, cmd, label, cwd);
   } catch (err) {
-    if (id === state.activeLogId) {
-      appendLogLine($logOut, `Error: ${err}`, 'stderr');
-    }
+    if (id === state.activeLogId) appendLogLine($logOut, `Error: ${err}`, 'stderr');
   }
-}
-
-function appendLogLine(container, text, stream) {
-  const div = document.createElement('div');
-  div.className = 'log-line ' + (stream || 'stdout');
-  div.textContent = text;
-  container.appendChild(div);
 }
 
 // ── Search ─────────────────────────────────────────
