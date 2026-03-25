@@ -203,12 +203,23 @@ pub fn open_in_explorer(directory: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn open_in_vscode(directory: String) -> Result<(), String> {
-    Command::new("cmd")
-        .args(["/C", "code", &directory])
-        .creation_flags(CREATE_NO_WINDOW)
-        .stdout(Stdio::null())
-        .spawn()
-        .map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    {
+        Command::new("cmd")
+            .args(["/C", "code", &directory])
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdout(Stdio::null())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(windows))]
+    {
+        Command::new("code")
+            .arg(&directory)
+            .stdout(Stdio::null())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 
