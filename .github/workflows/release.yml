@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     strategy:
@@ -28,7 +31,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -58,9 +61,7 @@ jobs:
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/macos/*.app
             src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/appimage/*.AppImage
 
   release:
     needs: build

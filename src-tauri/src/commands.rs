@@ -37,59 +37,279 @@ pub fn pick_folder(app: AppHandle) -> Result<Option<String>, String> {
 const SKIP_SCRIPTS: &[&str] = &["prepare", "prepublishOnly", "postinstall", "preinstall"];
 
 #[tauri::command]
-pub fn scan_package_json(directory: String) -> Result<ScanResult, String> {
-    let pkg_path = PathBuf::from(&directory).join("package.json");
-    if !pkg_path.exists() {
-        return Err("No package.json found".into());
+pub fn scan_project(directory: String) -> Result<ScanResult, String> {
+    let dir = PathBuf::from(&directory);
+
+    // Try each project type in order
+    if dir.join("package.json").exists() {
+        return scan_node(&dir);
+    }
+    if dir.join("Cargo.toml").exists() {
+        return scan_cargo(&dir);
+    }
+    if dir.join("pyproject.toml").exists() || dir.join("requirements.txt").exists() {
+        return scan_python(&dir);
+    }
+    if dir.join("composer.json").exists() {
+        return scan_php(&dir);
+    }
+    if dir.join("go.mod").exists() {
+        return scan_go(&dir);
+    }
+    if dir.join("Makefile").exists() || dir.join("makefile").exists() {
+        return scan_makefile(&dir);
+    }
+    if dir.join("docker-compose.yml").exists() || dir.join("docker-compose.yaml").exists() {
+        return scan_docker_compose(&dir);
     }
 
-    let data = fs::read_to_string(&pkg_path).map_err(|e| e.to_string())?;
+    // Fallback: use folder name, no commands
+    let name = dir.file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    Ok(ScanResult { name, framework: None, commands: vec![] })
+}
+
+// ── Node.js / Bun ──────────────────────────────────
+
+fn scan_node(dir: &PathBuf) -> Result<ScanResult, String> {
+    let data = fs::read_to_string(dir.join("package.json")).map_err(|e| e.to_string())?;
     let pkg: serde_json::Value = serde_json::from_str(&data).map_err(|e| e.to_string())?;
 
-    let name = pkg
-        .get("name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
+    let name = pkg.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
     let framework = detect_framework(&pkg);
-    let mut commands = Vec::new();
 
+    // Detect package manager
+    let runner = if dir.join("bun.lockb").exists() || dir.join("bun.lock").exists() {
+        "bun run"
+    } else if dir.join("pnpm-lock.yaml").exists() {
+        "pnpm run"
+    } else if dir.join("yarn.lock").exists() {
+        "yarn"
+    } else {
+        "npm run"
+    };
+
+    let mut commands = Vec::new();
     if let Some(scripts) = pkg.get("scripts").and_then(|v| v.as_object()) {
         for (key, val) in scripts {
-            if SKIP_SCRIPTS.contains(&key.as_str()) {
-                continue;
-            }
-            // Skip pre/post lifecycle hooks (e.g. preBuild, postTest)
-            if is_lifecycle_hook(key) {
+            if SKIP_SCRIPTS.contains(&key.as_str()) || is_lifecycle_hook(key) {
                 continue;
             }
             if val.is_string() {
                 commands.push(CommandDef {
                     label: key.clone(),
-                    cmd: format!("npm run {}", key),
+                    cmd: format!("{} {}", runner, key),
                 });
             }
         }
     }
 
-    // Sort: dev-related first, then build/test, then rest
     commands.sort_by_key(|c| match c.label.as_str() {
-        "dev" => 0,
-        "start" => 1,
-        "serve" => 2,
-        "build" => 3,
-        "test" => 4,
-        "lint" => 5,
+        "dev" => 0, "start" => 1, "serve" => 2,
+        "build" => 3, "test" => 4, "lint" => 5,
         _ => 10,
     });
 
+    Ok(ScanResult { name, framework, commands })
+}
+
+// ── Rust / Cargo ───────────────────────────────────
+
+fn scan_cargo(dir: &PathBuf) -> Result<ScanResult, String> {
+    let data = fs::read_to_string(dir.join("Cargo.toml")).map_err(|e| e.to_string())?;
+    let name = data.lines()
+        .find(|l| l.starts_with("name"))
+        .and_then(|l| l.split('"').nth(1))
+        .unwrap_or("")
+        .to_string();
+
     Ok(ScanResult {
         name,
-        framework,
-        commands,
+        framework: Some("Rust".into()),
+        commands: vec![
+            CommandDef { label: "run".into(), cmd: "cargo run".into() },
+            CommandDef { label: "build".into(), cmd: "cargo build".into() },
+            CommandDef { label: "test".into(), cmd: "cargo test".into() },
+            CommandDef { label: "check".into(), cmd: "cargo check".into() },
+        ],
     })
 }
+
+// ── Python ─────────────────────────────────────────
+
+fn scan_python(dir: &PathBuf) -> Result<ScanResult, String> {
+    let name = dir.file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    let mut framework = None;
+    let mut commands = Vec::new();
+
+    // Check pyproject.toml for framework hints
+    if let Ok(data) = fs::read_to_string(dir.join("pyproject.toml")) {
+        if data.contains("django") {
+            framework = Some("Django".into());
+            commands.push(CommandDef { label: "dev".into(), cmd: "python manage.py runserver".into() });
+            commands.push(CommandDef { label: "migrate".into(), cmd: "python manage.py migrate".into() });
+        } else if data.contains("fastapi") || data.contains("uvicorn") {
+            framework = Some("FastAPI".into());
+            commands.push(CommandDef { label: "dev".into(), cmd: "uvicorn main:app --reload".into() });
+        } else if data.contains("flask") {
+            framework = Some("Flask".into());
+            commands.push(CommandDef { label: "dev".into(), cmd: "flask run --reload".into() });
+        }
+    }
+
+    // Check for manage.py (Django)
+    if commands.is_empty() && dir.join("manage.py").exists() {
+        framework = Some("Django".into());
+        commands.push(CommandDef { label: "dev".into(), cmd: "python manage.py runserver".into() });
+        commands.push(CommandDef { label: "migrate".into(), cmd: "python manage.py migrate".into() });
+    }
+
+    if commands.is_empty() {
+        commands.push(CommandDef { label: "run".into(), cmd: "python main.py".into() });
+    }
+
+    Ok(ScanResult { name, framework, commands })
+}
+
+// ── Go ─────────────────────────────────────────────
+
+fn scan_go(dir: &PathBuf) -> Result<ScanResult, String> {
+    let data = fs::read_to_string(dir.join("go.mod")).map_err(|e| e.to_string())?;
+    let name = data.lines()
+        .find(|l| l.starts_with("module"))
+        .and_then(|l| l.split_whitespace().nth(1))
+        .and_then(|m| m.rsplit('/').next())
+        .unwrap_or("")
+        .to_string();
+
+    Ok(ScanResult {
+        name,
+        framework: Some("Go".into()),
+        commands: vec![
+            CommandDef { label: "run".into(), cmd: "go run .".into() },
+            CommandDef { label: "build".into(), cmd: "go build .".into() },
+            CommandDef { label: "test".into(), cmd: "go test ./...".into() },
+        ],
+    })
+}
+
+// ── Makefile ───────────────────────────────────────
+
+fn scan_makefile(dir: &PathBuf) -> Result<ScanResult, String> {
+    let name = dir.file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    let path = if dir.join("Makefile").exists() {
+        dir.join("Makefile")
+    } else {
+        dir.join("makefile")
+    };
+
+    let mut commands = Vec::new();
+    if let Ok(data) = fs::read_to_string(&path) {
+        for line in data.lines() {
+            if let Some(target) = line.strip_suffix(':') {
+                let target = target.trim();
+                if !target.is_empty() && !target.starts_with('.') && !target.contains(' ') {
+                    commands.push(CommandDef {
+                        label: target.to_string(),
+                        cmd: format!("make {}", target),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(ScanResult { name, framework: None, commands })
+}
+
+// ── PHP / Composer ─────────────────────────────────
+
+fn scan_php(dir: &PathBuf) -> Result<ScanResult, String> {
+    let data = fs::read_to_string(dir.join("composer.json")).map_err(|e| e.to_string())?;
+    let pkg: serde_json::Value = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+
+    let name = pkg.get("name")
+        .and_then(|v| v.as_str())
+        .and_then(|n| n.rsplit('/').next())
+        .unwrap_or("")
+        .to_string();
+
+    let require = pkg.get("require").and_then(|v| v.as_object());
+    let require_dev = pkg.get("require-dev").and_then(|v| v.as_object());
+    let has = |dep: &str| -> bool {
+        require.map_or(false, |d| d.contains_key(dep))
+            || require_dev.map_or(false, |d| d.contains_key(dep))
+    };
+
+    let framework = if has("laravel/framework") {
+        Some("Laravel".into())
+    } else if has("symfony/framework-bundle") || has("symfony/console") {
+        Some("Symfony".into())
+    } else if has("wordpress/core") || dir.join("wp-config.php").exists() {
+        Some("WordPress".into())
+    } else {
+        None
+    };
+
+    let mut commands = Vec::new();
+
+    // Add composer scripts
+    if let Some(scripts) = pkg.get("scripts").and_then(|v| v.as_object()) {
+        for key in scripts.keys() {
+            if !key.starts_with("pre-") && !key.starts_with("post-") {
+                commands.push(CommandDef {
+                    label: key.clone(),
+                    cmd: format!("composer {}", key),
+                });
+            }
+        }
+    }
+
+    // Add framework-specific commands
+    if has("laravel/framework") {
+        if !commands.iter().any(|c| c.label == "dev") {
+            commands.insert(0, CommandDef { label: "dev".into(), cmd: "php artisan serve".into() });
+        }
+        commands.push(CommandDef { label: "migrate".into(), cmd: "php artisan migrate".into() });
+        commands.push(CommandDef { label: "tinker".into(), cmd: "php artisan tinker".into() });
+    } else if has("symfony/framework-bundle") {
+        if !commands.iter().any(|c| c.label == "dev") {
+            commands.insert(0, CommandDef { label: "dev".into(), cmd: "symfony serve".into() });
+        }
+    } else if commands.is_empty() {
+        commands.push(CommandDef { label: "serve".into(), cmd: "php -S localhost:8000".into() });
+    }
+
+    Ok(ScanResult { name, framework, commands })
+}
+
+// ── Docker Compose ─────────────────────────────────
+
+fn scan_docker_compose(dir: &PathBuf) -> Result<ScanResult, String> {
+    let name = dir.file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    Ok(ScanResult {
+        name,
+        framework: Some("Docker".into()),
+        commands: vec![
+            CommandDef { label: "up".into(), cmd: "docker compose up".into() },
+            CommandDef { label: "up -d".into(), cmd: "docker compose up -d".into() },
+            CommandDef { label: "down".into(), cmd: "docker compose down".into() },
+            CommandDef { label: "logs".into(), cmd: "docker compose logs -f".into() },
+            CommandDef { label: "build".into(), cmd: "docker compose build".into() },
+        ],
+    })
+}
+
+// ── Helpers ────────────────────────────────────────
 
 fn is_lifecycle_hook(key: &str) -> bool {
     for prefix in &["pre", "post"] {

@@ -6,9 +6,9 @@ A tiny desktop app to manage your dev servers. One click to start, one click to 
 
 ## Why
 
-I was building 4 Node.js projects simultaneously with [Claude Code](https://claude.ai/claude-code). Each project needed its own `npm run dev`, so that's 4 extra terminal tabs on top of the 4 Claude Code sessions I already had running. 8 tabs, constantly switching, just to start or stop a dev server. It got out of hand fast.
+I was working on multiple projects simultaneously with [Claude Code](https://claude.ai/claude-code). Each project needed its own dev server running, so for every project that's another terminal tab, plus the terminals for Claude Code itself. It started getting frustrating real quick, constantly switching between tabs just to start or stop a server.
 
-I just wanted a simple app where I could see all my projects, hit play, and check logs when needed. So I built this with Claude Code, obviously.
+I just wanted a simple app where I could see all my projects, hit play, and check logs when needed. So I built this with Claude Code.
 
 ## What It Does
 

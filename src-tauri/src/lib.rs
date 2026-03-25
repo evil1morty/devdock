@@ -29,7 +29,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::pick_folder,
-            commands::scan_package_json,
+            commands::scan_project,
             commands::start_process,
             commands::stop_process,
             commands::get_logs,

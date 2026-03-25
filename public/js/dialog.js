@@ -37,7 +37,7 @@ async function scanDirectory(dir) {
   if (!dir) return;
   $inpDir.value = dir;
   try {
-    const result = await api.scanPackageJson(dir);
+    const result = await api.scanProject(dir);
     if (!$inpName.value.trim()) $inpName.value = result.name;
     $cmdList.innerHTML = '';
     result.commands.forEach(c => addCmdRow(c.label, c.cmd));
@@ -142,7 +142,7 @@ $('btn-save').addEventListener('click', async () => {
 
   let framework = null;
   try {
-    const scan = await api.scanPackageJson(dir);
+    const scan = await api.scanProject(dir);
     framework = scan.framework;
   } catch (_) {}
 
