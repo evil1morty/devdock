@@ -1,8 +1,10 @@
-# DevDock
+<p align="center">
+  <img src="images/icon.png" width="64" />
+</p>
+<h1 align="center">DevDock</h1>
+<p align="center">A tiny desktop app to manage your dev servers. One click to start, one click to stop.</p>
 
-A tiny desktop app to manage your dev servers. One click to start, one click to stop.
-
-![DevDock](image.png)
+![DevDock](images/screenshot.png)
 
 ## Why
 
@@ -10,14 +12,20 @@ I was working on multiple projects simultaneously with [Claude Code](https://cla
 
 I just wanted a simple app where I could see all my projects, hit play, and check logs when needed. So I built this with Claude Code.
 
-## What It Does
+## Features
 
-- **Add a project folder** and it reads `package.json`, pulls in the name, scripts, and detects the framework
+- **Auto-scan projects** reads `package.json`, `Cargo.toml`, `composer.json`, `go.mod`, `Makefile`, `docker-compose.yml` and pulls in name, scripts, and framework
 - **One-click play/stop** right on the dashboard
 - **Live logs** click a project to see stdout/stderr in real time
 - **Auto-detect URLs** when your server prints `localhost:3000`, it becomes a clickable link
-- **Context menu** run any script, open in VS Code, open in browser, show in explorer
-- **Persistent** your projects and commands are saved locally
+- **Open in Claude Code** opens a terminal at the project and runs your configured claude command
+- **Open in editor** VS Code, Cursor, or any editor you set
+- **Pin projects** to keep your most-used ones at the top
+- **Context menu** run any script, open in browser, show in explorer, edit, remove
+- **Settings** configure claude command with flags, editor, theme (dark/light/system), window size
+- **Framework detection** badges for Next.js, Vite, Svelte, React, Vue, Angular, Express, Laravel, Django, and more
+- **Cross-platform** Windows, macOS, Linux
+- **Detects package manager** uses bun, pnpm, yarn, or npm based on your lockfile
 
 ## Download
 
@@ -27,7 +35,7 @@ Grab the latest release for your platform from [Releases](https://github.com/evi
 |----------|------|
 | Windows | `.exe` or `.msi` |
 | macOS | `.dmg` |
-| Linux | `.deb` or `.AppImage` |
+| Linux | `.deb` |
 
 ## Build from Source
 
@@ -39,10 +47,6 @@ cd devdock
 npm install
 npx tauri build
 ```
-
-## Stack
-
-Tauri v2 + Rust backend + vanilla JS frontend. No bundler, no framework.
 
 ## License
 
