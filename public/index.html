@@ -155,6 +155,12 @@
         <input type="text" id="set-claude" placeholder="claude" />
       </label>
       <p class="setting-hint">e.g. <code>claude</code>, <code>claude --model opus</code>, <code>claude --dangerously-skip-permissions</code></p>
+      <label>Claude opens in
+        <select id="set-claude-mode">
+          <option value="window">New Window</option>
+          <option value="tab">New Tab (Windows Terminal)</option>
+        </select>
+      </label>
       <label>Editor command
         <input type="text" id="set-editor" placeholder="code" />
       </label>

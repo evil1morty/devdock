@@ -31,6 +31,14 @@ export function closeDialog() {
   state.editingId = null;
 }
 
+// ── Helpers ────────────────────────────────────────
+
+function prettifyName(name) {
+  return name
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // ── Scan directory ─────────────────────────────────
 
 async function scanDirectory(dir) {
@@ -38,11 +46,11 @@ async function scanDirectory(dir) {
   $inpDir.value = dir;
   try {
     const result = await api.scanProject(dir);
-    if (!$inpName.value.trim()) $inpName.value = result.name;
+    if (!$inpName.value.trim()) $inpName.value = prettifyName(result.name);
     $cmdList.innerHTML = '';
     result.commands.forEach(c => addCmdRow(c.label, c.cmd));
   } catch (_) {
-    if (!$inpName.value.trim()) $inpName.value = dir.split(/[\\/]/).pop() || '';
+    if (!$inpName.value.trim()) $inpName.value = prettifyName(dir.split(/[\\/]/).pop() || '');
     if ($cmdList.children.length === 0) {
       addCmdRow('dev', 'npm run dev');
       addCmdRow('build', 'npm run build');

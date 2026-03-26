@@ -2,19 +2,21 @@ import { state } from './state.js';
 import { api } from './api.js';
 import { $, closeOnBackdrop } from './dom.js';
 
-const $overlay = $('settings-overlay');
-const $claude  = $('set-claude');
-const $editor  = $('set-editor');
-const $theme   = $('set-theme');
+const $overlay    = $('settings-overlay');
+const $claude     = $('set-claude');
+const $claudeMode = $('set-claude-mode');
+const $editor     = $('set-editor');
+const $theme      = $('set-theme');
 const $width   = $('set-width');
 const $height  = $('set-height');
 
 // ── Open / Close ───────────────────────────────────
 
 export function openSettings() {
-  $claude.value = state.settings.claude_command;
-  $editor.value = state.settings.editor_command;
-  $theme.value  = state.settings.theme;
+  $claude.value     = state.settings.claude_command;
+  $claudeMode.value = state.settings.claude_mode || 'window';
+  $editor.value     = state.settings.editor_command;
+  $theme.value      = state.settings.theme;
   $width.value  = state.settings.width || 520;
   $height.value = state.settings.height || 680;
   $overlay.classList.remove('hidden');
@@ -72,15 +74,17 @@ $('settings-cancel').addEventListener('click', closeSettings);
 closeOnBackdrop($overlay, closeSettings);
 
 $('settings-reset').addEventListener('click', () => {
-  $claude.value = 'claude';
-  $editor.value = 'code';
-  $theme.value  = 'system';
+  $claude.value     = 'claude';
+  $claudeMode.value = 'tab';
+  $editor.value     = 'code';
+  $theme.value      = 'system';
   $width.value  = 520;
   $height.value = 680;
 });
 
 $('settings-save').addEventListener('click', async () => {
   state.settings.claude_command = $claude.value.trim() || 'claude';
+  state.settings.claude_mode = $claudeMode.value;
   state.settings.editor_command = $editor.value.trim() || 'code';
   state.settings.theme = $theme.value;
   state.settings.width = parseInt($width.value) || 520;

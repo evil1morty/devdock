@@ -101,7 +101,7 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
         if (s.url) api.openInBrowser(s.url);
         break;
       case 'claude':
-        if (proj) api.openInClaude(proj.directory, state.settings.claude_command);
+        if (proj) api.openInClaude(proj.directory, state.settings.claude_command, state.settings.claude_mode, proj.name);
         break;
       case 'editor':
         if (proj) api.openInEditor(proj.directory, state.settings.editor_command);

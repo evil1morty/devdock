@@ -458,25 +458,57 @@ pub fn open_in_editor(directory: String, editor: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn open_in_claude(directory: String, claude_command: String) -> Result<(), String> {
-    // Open a new terminal at the project dir and run the claude command
+pub fn open_in_claude(
+    directory: String,
+    claude_command: String,
+    mode: String,
+    project_name: String,
+) -> Result<(), String> {
+    let tab_title = format!("CLAUDE - {}", project_name);
+
     #[cfg(windows)]
     {
-        let temp = std::env::temp_dir().join("onerun_claude.bat");
-        fs::write(&temp, format!("@echo off\ncd /d \"{}\"\n{}\n", directory, claude_command))
-            .map_err(|e| e.to_string())?;
-        Command::new("cmd")
-            .args(["/C", "start", "cmd", "/K", &temp.to_string_lossy().to_string()])
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        if mode == "tab" {
+            // Open as new tab in existing Windows Terminal
+            // --suppressApplicationTitle prevents Claude from overriding the tab title
+            Command::new("cmd")
+                .args([
+                    "/C", "wt", "-w", "0", "new-tab",
+                    "--title", &tab_title,
+                    "--suppressApplicationTitle",
+                    "-d", &directory,
+                    "cmd", "/K", &claude_command,
+                ])
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        } else {
+            // Open as new window
+            let temp = std::env::temp_dir().join("onerun_claude.bat");
+            fs::write(&temp, format!(
+                "@echo off\ntitle {}\ncd /d \"{}\"\n{}\n",
+                tab_title, directory, claude_command
+            )).map_err(|e| e.to_string())?;
+            Command::new("cmd")
+                .args(["/C", "start", "cmd", "/K", &temp.to_string_lossy().to_string()])
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
     }
     #[cfg(target_os = "macos")]
     {
-        let script = format!(
-            "tell application \"Terminal\" to do script \"cd '{}' && {}\"",
-            directory, claude_command
-        );
+        let script = if mode == "tab" {
+            format!(
+                "tell application \"Terminal\"\nactivate\ntell application \"System Events\" to keystroke \"t\" using command down\ndo script \"cd '{}' && {}\" in front window\nend tell",
+                directory, claude_command
+            )
+        } else {
+            format!(
+                "tell application \"Terminal\" to do script \"cd '{}' && {}\"",
+                directory, claude_command
+            )
+        };
         Command::new("osascript")
             .args(["-e", &script])
             .spawn()
@@ -484,7 +516,6 @@ pub fn open_in_claude(directory: String, claude_command: String) -> Result<(), S
     }
     #[cfg(target_os = "linux")]
     {
-        // Try common terminals
         let cmd_str = format!("cd '{}' && {} ; exec bash", directory, claude_command);
         let terminals = [
             ("x-terminal-emulator", vec!["-e", "bash", "-c"]),

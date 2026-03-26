@@ -7,6 +7,7 @@ export const state = {
   editingId: null,     // dialog: null = add, string = edit
   settings: {
     claude_command: 'claude',
+    claude_mode: 'tab',
     editor_command: 'code',
     theme: 'system',
     width: 520,

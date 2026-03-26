@@ -25,6 +25,8 @@ pub struct AppState {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Settings {
     pub claude_command: String,
+    #[serde(default = "default_claude_mode")]
+    pub claude_mode: String, // "window" or "tab"
     pub editor_command: String,
     pub theme: String,
     #[serde(default = "default_width")]
@@ -33,6 +35,7 @@ pub struct Settings {
     pub height: u32,
 }
 
+fn default_claude_mode() -> String { "tab".into() }
 fn default_width() -> u32 { 520 }
 fn default_height() -> u32 { 680 }
 
@@ -40,6 +43,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             claude_command: "claude".into(),
+            claude_mode: "tab".into(),
             editor_command: "code".into(),
             theme: "system".into(),
             width: 520,
