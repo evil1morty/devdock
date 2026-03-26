@@ -19,8 +19,9 @@ I just wanted a simple app where I could see all my projects, hit play, and chec
 - **Auto-scan projects** reads `package.json`, `Cargo.toml`, `go.mod`, `composer.json`, `Makefile`, `docker-compose.yml` and detects framework, scripts, and package manager
 - **One-click play/stop** with live logs and auto-detected localhost URLs
 - **Per-project environment variables** for isolated credentials and config
-- **System tray** with start on boot support
+- **System tray** with optional start on boot
 - **Open in Claude Code** or your editor of choice
+- **Pin, search, and organize** your projects from one dashboard
 - **Cross-platform** Windows, macOS, Linux
 
 ## Download
