@@ -14,6 +14,61 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
+// ── Windows Job Object ─────────────────────────────
+// Ensures all child processes die when OneRun exits, even on crash/force-kill.
+
+#[cfg(windows)]
+static JOB_HANDLE: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+
+#[cfg(windows)]
+pub fn init_job_object() {
+    extern "system" {
+        fn CreateJobObjectW(attrs: *const u8, name: *const u16) -> *mut std::ffi::c_void;
+        fn SetInformationJobObject(job: *mut std::ffi::c_void, class: u32, info: *const u8, len: u32) -> i32;
+    }
+
+    unsafe {
+        let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+        if job.is_null() { return; }
+
+        // JOBOBJECT_BASIC_LIMIT_INFORMATION + IO_COUNTERS = extended info
+        // LimitFlags offset is 16 bytes in, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
+        let mut info = [0u8; 112]; // JOBOBJECT_EXTENDED_LIMIT_INFORMATION size
+        let flags_ptr = info.as_mut_ptr().add(16) as *mut u32;
+        *flags_ptr = 0x2000; // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+
+        // JobObjectExtendedLimitInformation = 9
+        SetInformationJobObject(job, 9, info.as_ptr(), info.len() as u32);
+
+        let _ = JOB_HANDLE.set(job as usize);
+    }
+}
+
+#[cfg(windows)]
+fn assign_to_job(pid: u32) {
+    extern "system" {
+        fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut std::ffi::c_void;
+        fn AssignProcessToJobObject(job: *mut std::ffi::c_void, proc: *mut std::ffi::c_void) -> i32;
+        fn CloseHandle(handle: *mut std::ffi::c_void) -> i32;
+    }
+
+    if let Some(&job) = JOB_HANDLE.get() {
+        unsafe {
+            let proc = OpenProcess(0x001F0FFF, 0, pid);
+            if !proc.is_null() {
+                AssignProcessToJobObject(job as *mut std::ffi::c_void, proc);
+                CloseHandle(proc);
+            }
+        }
+    }
+}
+
+#[cfg(not(windows))]
+pub fn init_job_object() {}
+
+#[cfg(not(windows))]
+fn assign_to_job(_pid: u32) {}
+
 const MAX_LOG_LINES: usize = 2000;
 
 // ── Shell helpers ──────────────────────────────────
@@ -198,8 +253,9 @@ pub fn start(
         }
     };
 
-    // Store PID
+    // Store PID and assign to job object (auto-kill on app crash)
     let pid = child.id();
+    assign_to_job(pid);
     {
         let mut map = processes.lock().unwrap();
         if let Some(ps) = map.get_mut(&id) {

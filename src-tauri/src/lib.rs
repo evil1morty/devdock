@@ -15,6 +15,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            process::init_job_object();
             let config_dir = app
                 .path()
                 .app_data_dir()
