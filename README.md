@@ -2,7 +2,7 @@
   <img src="images/icon.png" width="64" />
 </p>
 <h1 align="center">OneRun</h1>
-<p align="center">One app to run them all. Without the tab chaos.</p>
+<p align="center">One run to rule them all.</p>
 
 <p align="center">
   <img src="images/screenshot.png" width="480" />
