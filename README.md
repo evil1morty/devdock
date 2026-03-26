@@ -4,7 +4,9 @@
 <h1 align="center">OneRun</h1>
 <p align="center">One app to run them all. Without the tab chaos.</p>
 
-![OneRun](images/screenshot.png)
+<p align="center">
+  <img src="images/screenshot.png" width="480" />
+</p>
 
 ## Why
 
