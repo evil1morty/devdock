@@ -16,21 +16,12 @@ I just wanted a simple app where I could see all my projects, hit play, and chec
 
 ## Features
 
-- **Auto-scan projects** reads `package.json`, `Cargo.toml`, `composer.json`, `go.mod`, `Makefile`, `docker-compose.yml` and pulls in name, scripts, and framework
-- **One-click play/stop** right on the dashboard
-- **Live logs** click a project to see stdout/stderr in real time, copy to clipboard
-- **Auto-detect URLs** when your server prints `localhost:3000`, it becomes a clickable link
-- **Per-project environment variables** set isolated credentials and config per project, injected when commands run
-- **System tray** closing minimizes to tray, click tray icon to restore, quit from tray menu
-- **Start on boot** launches minimized to tray on system startup
-- **Open in Claude Code** opens a terminal at the project and runs your configured claude command
-- **Open in editor** VS Code, Cursor, or any editor you set
-- **Pin projects** to keep your most-used ones at the top
-- **Context menu** run any script, open in browser, show in explorer, edit, remove
-- **Settings** configure claude command with flags, editor, theme (dark/light/system), window size, autostart
-- **Framework detection** badges for Next.js, Vite, Svelte, React, Vue, Angular, Express, Laravel, Django, and more
+- **Auto-scan projects** reads `package.json`, `Cargo.toml`, `go.mod`, `composer.json`, `Makefile`, `docker-compose.yml` and detects framework, scripts, and package manager
+- **One-click play/stop** with live logs and auto-detected localhost URLs
+- **Per-project environment variables** for isolated credentials and config
+- **System tray** with start on boot support
+- **Open in Claude Code** or your editor of choice
 - **Cross-platform** Windows, macOS, Linux
-- **Detects package manager** uses bun, pnpm, yarn, or npm based on your lockfile
 
 ## Download
 
