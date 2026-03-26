@@ -25,7 +25,7 @@ export function openContextMenu(id, e) {
       b.appendChild(icon);
       b.appendChild(document.createTextNode(' ' + c.label));
       b.addEventListener('click', () => {
-        runCommand(id, c.label, c.cmd, proj.directory);
+        runCommand(id, c.label, c.cmd, proj.directory, proj.env);
         closeContextMenu();
       });
       $ctxCmds.appendChild(b);
@@ -94,7 +94,7 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
       case 'restart':
         if (s.active_command && proj) {
           const cmd = proj.commands.find(c => c.label === s.active_command);
-          if (cmd) runCommand(id, cmd.label, cmd.cmd, proj.directory);
+          if (cmd) runCommand(id, cmd.label, cmd.cmd, proj.directory, proj.env);
         }
         break;
       case 'browser':

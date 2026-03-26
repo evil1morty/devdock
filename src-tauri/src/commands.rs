@@ -9,6 +9,7 @@ use tauri_plugin_dialog::DialogExt;
 use crate::process;
 use crate::types::*;
 use crate::util::detect_framework;
+use tauri_plugin_autostart::ManagerExt;
 
 #[cfg(windows)]
 use crate::process::CREATE_NO_WINDOW_FLAG;
@@ -336,10 +337,11 @@ pub fn start_process(
     command: String,
     label: String,
     cwd: String,
+    env: Vec<EnvVar>,
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    process::start(id, command, label, cwd, app, state.processes.clone())
+    process::start(id, command, label, cwd, env, app, state.processes.clone())
 }
 
 #[tauri::command]
@@ -613,4 +615,21 @@ pub fn save_settings(settings: Settings, state: State<'_, AppState>) -> Result<(
     }
     let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(&*path, json).map_err(|e| e.to_string())
+}
+
+// ── Autostart ─────────────────────────────────────
+
+#[tauri::command]
+pub fn get_autostart(app: AppHandle) -> Result<bool, String> {
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let manager = app.autolaunch();
+    if enabled {
+        manager.enable().map_err(|e| e.to_string())
+    } else {
+        manager.disable().map_err(|e| e.to_string())
+    }
 }

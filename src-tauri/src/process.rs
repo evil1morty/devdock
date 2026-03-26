@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tauri::{AppHandle, Emitter};
 
-use crate::types::*;
+use crate::types::{EnvVar, LogLine, LogPayload, ProcessState, StatusPayload};
 use crate::util::{detect_url, strip_ansi};
 
 #[cfg(windows)]
@@ -74,33 +74,37 @@ const MAX_LOG_LINES: usize = 2000;
 // ── Shell helpers ──────────────────────────────────
 
 #[cfg(windows)]
-pub fn spawn_shell(command: &str, cwd: &str) -> Result<std::process::Child, String> {
-    Command::new("cmd")
-        .args(["/C", command])
+pub fn spawn_shell(command: &str, cwd: &str, env: &[EnvVar]) -> Result<std::process::Child, String> {
+    let mut cmd = Command::new("cmd");
+    cmd.args(["/C", command])
         .current_dir(cwd)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .creation_flags(CREATE_NO_WINDOW_FLAG)
-        .spawn()
-        .map_err(|e| e.to_string())
+        .creation_flags(CREATE_NO_WINDOW_FLAG);
+    for e in env {
+        cmd.env(&e.key, &e.value);
+    }
+    cmd.spawn().map_err(|e| e.to_string())
 }
 
 #[cfg(not(windows))]
-pub fn spawn_shell(command: &str, cwd: &str) -> Result<std::process::Child, String> {
+pub fn spawn_shell(command: &str, cwd: &str, env: &[EnvVar]) -> Result<std::process::Child, String> {
     use std::os::unix::process::CommandExt;
-    unsafe {
-        Command::new("sh")
-            .args(["-c", command])
-            .current_dir(cwd)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .pre_exec(|| {
-                libc::setsid();
-                Ok(())
-            })
-            .spawn()
-            .map_err(|e| e.to_string())
+    let mut cmd = Command::new("sh");
+    cmd.args(["-c", command])
+        .current_dir(cwd)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    for e in env {
+        cmd.env(&e.key, &e.value);
     }
+    unsafe {
+        cmd.pre_exec(|| {
+            libc::setsid();
+            Ok(())
+        });
+    }
+    cmd.spawn().map_err(|e| e.to_string())
 }
 
 #[cfg(windows)]
@@ -175,7 +179,8 @@ fn spawn_reader(
                 if let Some(url) = detect_url(&clean) {
                     if let Ok(mut map) = procs.lock() {
                         if let Some(ps) = map.get_mut(&id) {
-                            if ps.detected_url.is_none() {
+                            let changed = ps.detected_url.as_ref() != Some(&url);
+                            if changed {
                                 ps.detected_url = Some(url.clone());
                                 let _ = app.emit(
                                     "process-status",
@@ -213,6 +218,7 @@ pub fn start(
     command: String,
     label: String,
     cwd: String,
+    env: Vec<EnvVar>,
     app: AppHandle,
     processes: Arc<Mutex<HashMap<String, ProcessState>>>,
 ) -> Result<(), String> {
@@ -232,7 +238,7 @@ pub fn start(
     }
 
     // Spawn
-    let mut child = match spawn_shell(&command, &cwd) {
+    let mut child = match spawn_shell(&command, &cwd, &env) {
         Ok(c) => c,
         Err(e) => {
             let mut map = processes.lock().unwrap();

@@ -12,6 +12,7 @@ export const state = {
     theme: 'system',
     width: 520,
     height: 680,
+    autostart: false,
   },
 };
 

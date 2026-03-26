@@ -8,6 +8,7 @@ const $dlgTitle = $('dialog-title');
 const $inpName  = $('inp-name');
 const $inpDir   = $('inp-dir');
 const $cmdList  = $('cmd-list');
+const $envList  = $('env-list');
 
 // ── Open / Close ───────────────────────────────────
 
@@ -21,6 +22,9 @@ export function openDialog(id) {
 
   $cmdList.innerHTML = '';
   if (proj) proj.commands.forEach(c => addCmdRow(c.label, c.cmd));
+
+  $envList.innerHTML = '';
+  if (proj && proj.env) proj.env.forEach(e => addEnvRow(e.key, e.value));
 
   $overlay.classList.remove('hidden');
   $inpDir.focus();
@@ -37,6 +41,10 @@ function prettifyName(name) {
   return name
     .replace(/[-_]+/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function clearErrorOnInput(input) {
+  input.addEventListener('input', () => input.classList.remove('input-error'));
 }
 
 // ── Scan directory ─────────────────────────────────
@@ -60,10 +68,6 @@ async function scanDirectory(dir) {
 
 // ── Command row builder ────────────────────────────
 
-function clearErrorOnInput(input) {
-  input.addEventListener('input', () => input.classList.remove('input-error'));
-}
-
 function addCmdRow(label, cmd) {
   const row = el('div', 'cmd-row');
 
@@ -84,6 +88,30 @@ function addCmdRow(label, cmd) {
 
   row.append(inpLabel, inpCmd, rm);
   $cmdList.appendChild(row);
+}
+
+// ── Env var row builder ────────────────────────────
+
+function addEnvRow(key, value) {
+  const row = el('div', 'env-row');
+
+  const inpKey = el('input');
+  inpKey.type = 'text';
+  inpKey.placeholder = 'KEY';
+  inpKey.value = key || '';
+  clearErrorOnInput(inpKey);
+
+  const inpVal = el('input');
+  inpVal.type = 'text';
+  inpVal.placeholder = 'value';
+  inpVal.value = value || '';
+  clearErrorOnInput(inpVal);
+
+  const rm = btn('rm-cmd', null, () => row.remove());
+  rm.innerHTML = '&times;';
+
+  row.append(inpKey, inpVal, rm);
+  $envList.appendChild(row);
 }
 
 // ── Validation ─────────────────────────────────────
@@ -114,6 +142,28 @@ function validateCommands() {
   return hasError ? null : commands;
 }
 
+function collectEnvVars() {
+  const env = [];
+  let hasError = false;
+
+  $envList.querySelectorAll('.env-row').forEach(row => {
+    const [inpKey, inpVal] = row.querySelectorAll('input');
+    const k = inpKey.value.trim();
+    const v = inpVal.value;
+
+    inpKey.classList.remove('input-error');
+
+    if (k) {
+      env.push({ key: k, value: v });
+    } else if (!k && v.trim()) {
+      inpKey.classList.add('input-error');
+      hasError = true;
+    }
+  });
+
+  return hasError ? null : env;
+}
+
 // ── Event handlers ─────────────────────────────────
 
 $('btn-scan').addEventListener('click', async () => {
@@ -134,6 +184,7 @@ $inpDir.addEventListener('input', () => {
 clearErrorOnInput($inpName);
 
 $('btn-add-cmd').addEventListener('click', () => addCmdRow('', ''));
+$('btn-add-env').addEventListener('click', () => addEnvRow('', ''));
 $('btn-cancel').addEventListener('click', closeDialog);
 closeOnBackdrop($overlay, closeDialog);
 
@@ -148,7 +199,9 @@ $('btn-save').addEventListener('click', async () => {
   const commands = validateCommands();
   if (!commands) return;
 
-  // Check for duplicate directory
+  const env = collectEnvVars();
+  if (!env) return;
+
   const duplicate = state.projects.find(p => p.directory === dir && p.id !== state.editingId);
   if (duplicate) {
     $inpDir.classList.add('input-error');
@@ -163,9 +216,9 @@ $('btn-save').addEventListener('click', async () => {
 
   if (state.editingId) {
     const proj = state.projects.find(p => p.id === state.editingId);
-    if (proj) Object.assign(proj, { name, directory: dir, commands, framework });
+    if (proj) Object.assign(proj, { name, directory: dir, commands, env, framework });
   } else {
-    state.projects.push({ id: crypto.randomUUID(), name, directory: dir, framework, commands, pinned: false });
+    state.projects.push({ id: crypto.randomUUID(), name, directory: dir, framework, commands, env, pinned: false });
   }
 
   await api.saveConfig(state.projects);

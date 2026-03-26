@@ -69,7 +69,7 @@ function createRow(p) {
       const devCmd = (p.commands || []).find(c =>
         ['dev', 'start', 'serve'].includes(c.label)
       ) || (p.commands || [])[0];
-      if (devCmd) runCommand(p.id, devCmd.label, devCmd.cmd, p.directory);
+      if (devCmd) runCommand(p.id, devCmd.label, devCmd.cmd, p.directory, p.env);
     }
   });
   playBtn.innerHTML = s.running ? '&#9632;' : '&#9654;';
@@ -89,11 +89,10 @@ function createRow(p) {
 
 // ── Run command (shared) ───────────────────────────
 
-export async function runCommand(id, label, cmd, cwd) {
+export async function runCommand(id, label, cmd, cwd, env = []) {
   const s = getStatus(id);
   if (s.running) {
     try { await api.stopProcess(id); } catch (_) {}
-    // Wait for process to actually stop (up to 5s)
     for (let i = 0; i < 50; i++) {
       await new Promise(r => setTimeout(r, 100));
       if (!getStatus(id).running) break;
@@ -107,7 +106,7 @@ export async function runCommand(id, label, cmd, cwd) {
   }
 
   try {
-    await api.startProcess(id, cmd, label, cwd);
+    await api.startProcess(id, cmd, label, cwd, env);
   } catch (err) {
     if (id === state.activeLogId) appendLogLine($logOut, `Error: ${err}`, 'stderr');
   }

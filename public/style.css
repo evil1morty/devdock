@@ -58,6 +58,7 @@ body {
 }
 
 .hidden { display: none !important; }
+.spacer { flex: 1; }
 
 /* ── Header ─────────────────────────────────────── */
 #header {
@@ -224,6 +225,48 @@ body {
   flex-shrink: 0;
 }
 .num-btn:hover { background: var(--accent); color: #fff; }
+/* Toggle switch */
+#settings-dialog .toggle-label {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: row;
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 500;
+  margin-top: 10px;
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+#settings-dialog .toggle-label input { display: none !important; }
+.toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--bg4);
+  border-radius: 10px;
+  transition: background .2s;
+  flex-shrink: 0;
+}
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--text2);
+  border-radius: 50%;
+  transition: transform .2s, background .2s;
+}
+.toggle-label input:checked + .toggle-switch {
+  background: var(--accent);
+}
+.toggle-label input:checked + .toggle-switch::after {
+  transform: translateX(16px);
+  background: #fff;
+}
+
 .setting-hint code { background: var(--bg4); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
 
 .settings-about {
@@ -248,6 +291,11 @@ body {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  transition: filter .2s;
+}
+#dashboard.blurred {
+  filter: blur(2px);
+  cursor: pointer;
 }
 
 #project-table {
@@ -478,8 +526,8 @@ body {
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  height: 55%;
-  min-height: 180px;
+  height: 60%;
+  min-height: 220px;
   flex-shrink: 0;
 }
 
@@ -677,7 +725,7 @@ body {
 }
 #btn-scan:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-#cmd-list-header {
+#cmd-list-header, #env-list-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -687,7 +735,7 @@ body {
   font-weight: 500;
 }
 
-#btn-add-cmd {
+#btn-add-cmd, #btn-add-env {
   background: var(--bg4);
   color: var(--text);
   border: 1px solid var(--border);
@@ -701,9 +749,9 @@ body {
   justify-content: center;
   transition: all .12s;
 }
-#btn-add-cmd:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+#btn-add-cmd:hover, #btn-add-env:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-#cmd-list {
+#cmd-list, #env-list {
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -712,12 +760,12 @@ body {
   overflow-y: auto;
 }
 
-.cmd-row {
+.cmd-row, .env-row {
   display: flex;
   gap: 5px;
   align-items: center;
 }
-.cmd-row input {
+.cmd-row input, .env-row input {
   flex: 1;
   padding: 6px 8px;
   font-size: 11px;
@@ -729,8 +777,9 @@ body {
   outline: none;
 }
 .cmd-row input:first-child { max-width: 80px; }
-.cmd-row input:focus { border-color: var(--accent); }
-.cmd-row .rm-cmd {
+.env-row input:first-child { max-width: 140px; }
+.cmd-row input:focus, .env-row input:focus { border-color: var(--accent); }
+.cmd-row .rm-cmd, .env-row .rm-cmd {
   background: none;
   border: none;
   color: var(--text3);
@@ -739,7 +788,7 @@ body {
   padding: 0 4px;
   line-height: 1;
 }
-.cmd-row .rm-cmd:hover { color: var(--red); }
+.cmd-row .rm-cmd:hover, .env-row .rm-cmd:hover { color: var(--red); }
 
 .dialog-actions {
   display: flex;

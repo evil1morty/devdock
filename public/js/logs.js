@@ -4,6 +4,7 @@ import { $, el, btn, toggle, appendLogLine } from './dom.js';
 import { runCommand } from './dashboard.js';
 
 const $logPanel = $('log-panel');
+const $dash     = $('dashboard');
 const $logName  = $('log-project-name');
 const $logCmd   = $('log-active-cmd');
 const $logCmds  = $('log-commands');
@@ -17,6 +18,7 @@ export async function openLogPanel(id) {
   if (!proj) return;
 
   toggle($logPanel, true);
+  $dash.classList.add('blurred');
   updateLogHeader();
   updateLogCommands();
 
@@ -39,6 +41,7 @@ export async function openLogPanel(id) {
 
 export function closeLogPanel() {
   toggle($logPanel, false);
+  $dash.classList.remove('blurred');
   state.activeLogId = null;
   document.querySelectorAll('.project-row').forEach(r => r.classList.remove('active'));
 }
@@ -77,7 +80,7 @@ export function updateLogCommands() {
     const b = btn(
       'log-cmd-btn' + (s.running && s.active_command === c.label ? ' active' : ''),
       c.label,
-      () => runCommand(proj.id, c.label, c.cmd, proj.directory)
+      () => runCommand(proj.id, c.label, c.cmd, proj.directory, proj.env)
     );
     $logCmds.appendChild(b);
   });
@@ -91,5 +94,16 @@ export function updateLogCommands() {
 
 // ── Button handlers ────────────────────────────────
 
+$dash.addEventListener('click', (e) => {
+  if (!$dash.classList.contains('blurred')) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  closeLogPanel();
+}, true);
+$('log-copy').addEventListener('click', () => {
+  const lines = $logOut.querySelectorAll('.log-line');
+  const text = Array.from(lines).map(l => l.textContent).join('\n');
+  navigator.clipboard.writeText(text);
+});
 $('log-clear').addEventListener('click', () => { $logOut.innerHTML = ''; });
 $('log-close').addEventListener('click', closeLogPanel);

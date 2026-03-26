@@ -28,9 +28,21 @@ pub fn detect_url(line: &str) -> Option<String> {
         if let Some(pos) = line.find(pat) {
             let rest = &line[pos..];
             let end = rest
-                .find(|c: char| c.is_whitespace() || c == ',' || c == ')' || c == ']')
+                .find(|c: char| {
+                    c.is_whitespace()
+                        || c == ','
+                        || c == ')'
+                        || c == ']'
+                        || c == '"'
+                        || c == '\''
+                        || c == ';'
+                        || c == '>'
+                })
                 .unwrap_or(rest.len());
-            return Some(rest[..end].trim_end_matches('/').to_string());
+            let url = rest[..end].trim_end_matches('/');
+            if url.len() > pat.len() {
+                return Some(url.to_string());
+            }
         }
     }
     None

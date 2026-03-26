@@ -11,7 +11,7 @@ export const api = {
   saveSettings:    (settings)      => invoke('save_settings', { settings }),
   getAllStatus:     ()              => invoke('get_all_status'),
   getLogs:         (id)            => invoke('get_logs', { id }),
-  startProcess:    (id, command, label, cwd) => invoke('start_process', { id, command, label, cwd }),
+  startProcess:    (id, command, label, cwd, env) => invoke('start_process', { id, command, label, cwd, env: env || [] }),
   stopProcess:     (id)            => invoke('stop_process', { id }),
   pickFolder:      ()              => invoke('pick_folder'),
   scanProject:     (directory)     => invoke('scan_project', { directory }),
@@ -20,4 +20,6 @@ export const api = {
   openInClaude:    (directory, claudeCommand, mode, projectName) => invoke('open_in_claude', { directory, claudeCommand, mode, projectName }),
   openInBrowser:   (url)           => invoke('open_in_browser', { url }),
   forceClose:      ()              => invoke('force_close'),
+  getAutostart:    ()              => invoke('get_autostart'),
+  setAutostart:    (enabled)       => invoke('set_autostart', { enabled }),
 };

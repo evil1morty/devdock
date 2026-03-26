@@ -34,6 +34,8 @@ pub struct Settings {
     pub width: u32,
     #[serde(default = "default_height")]
     pub height: u32,
+    #[serde(default)]
+    pub autostart: bool,
 }
 
 fn default_claude_mode() -> String { "tab".into() }
@@ -49,6 +51,7 @@ impl Default for Settings {
             theme: "system".into(),
             width: 520,
             height: 680,
+            autostart: false,
         }
     }
 }
@@ -63,7 +66,15 @@ pub struct ProjectConfig {
     pub framework: Option<String>,
     pub commands: Vec<CommandDef>,
     #[serde(default)]
+    pub env: Vec<EnvVar>,
+    #[serde(default)]
     pub pinned: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct EnvVar {
+    pub key: String,
+    pub value: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

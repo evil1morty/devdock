@@ -7,18 +7,20 @@ const $claude     = $('set-claude');
 const $claudeMode = $('set-claude-mode');
 const $editor     = $('set-editor');
 const $theme      = $('set-theme');
-const $width   = $('set-width');
-const $height  = $('set-height');
+const $width      = $('set-width');
+const $height     = $('set-height');
+const $autostart  = $('set-autostart');
 
 // ── Open / Close ───────────────────────────────────
 
-export function openSettings() {
+export async function openSettings() {
   $claude.value     = state.settings.claude_command;
   $claudeMode.value = state.settings.claude_mode || 'window';
   $editor.value     = state.settings.editor_command;
   $theme.value      = state.settings.theme;
   $width.value  = state.settings.width || 520;
   $height.value = state.settings.height || 680;
+  try { $autostart.checked = await api.getAutostart(); } catch (_) { $autostart.checked = false; }
   $overlay.classList.remove('hidden');
 }
 
@@ -80,6 +82,7 @@ $('settings-reset').addEventListener('click', () => {
   $theme.value      = 'system';
   $width.value  = 520;
   $height.value = 680;
+  $autostart.checked = false;
 });
 
 $('settings-save').addEventListener('click', async () => {
@@ -89,8 +92,10 @@ $('settings-save').addEventListener('click', async () => {
   state.settings.theme = $theme.value;
   state.settings.width = parseInt($width.value) || 520;
   state.settings.height = parseInt($height.value) || 680;
+  state.settings.autostart = $autostart.checked;
 
   await api.saveSettings(state.settings);
+  try { await api.setAutostart($autostart.checked); } catch (_) {}
   applyTheme(state.settings.theme);
   await applySize(state.settings.width, state.settings.height);
   closeSettings();
