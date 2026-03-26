@@ -19,4 +19,5 @@ export const api = {
   openInEditor:    (directory, editor) => invoke('open_in_editor', { directory, editor }),
   openInClaude:    (directory, claudeCommand, mode, projectName) => invoke('open_in_claude', { directory, claudeCommand, mode, projectName }),
   openInBrowser:   (url)           => invoke('open_in_browser', { url }),
+  forceClose:      ()              => invoke('force_close'),
 };

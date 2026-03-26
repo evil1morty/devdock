@@ -140,9 +140,10 @@ const $confOver = $('confirm-overlay');
 const $confMsg  = $('confirm-msg');
 let confirmCb = null;
 
-export function showConfirm(msg, cb) {
+export function showConfirm(msg, cb, yesLabel) {
   $confMsg.textContent = msg;
   confirmCb = cb;
+  $('confirm-yes').textContent = yesLabel || 'Remove';
   toggle($confOver, true);
 }
 

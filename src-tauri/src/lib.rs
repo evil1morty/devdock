@@ -6,7 +6,7 @@ mod util;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use types::AppState;
 
@@ -25,6 +25,7 @@ pub fn run() {
                 processes: Arc::new(Mutex::new(HashMap::new())),
                 config_path: Mutex::new(config_dir.join("projects.json")),
                 settings_path: Mutex::new(config_dir.join("settings.json")),
+                force_close: Mutex::new(false),
             });
 
             Ok(())
@@ -45,14 +46,34 @@ pub fn run() {
             commands::save_config,
             commands::load_settings,
             commands::save_settings,
+            commands::force_close,
         ])
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                if window.label() == "main" {
-                    if let Some(state) = window.try_state::<AppState>() {
-                        process::kill_all(&state.processes);
+            match event {
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    if window.label() == "main" {
+                        if let Some(state) = window.try_state::<AppState>() {
+                            if *state.force_close.lock().unwrap() {
+                                return;
+                            }
+                            let has_running = state.processes.lock()
+                                .map(|map| map.values().any(|ps| ps.running))
+                                .unwrap_or(false);
+                            if has_running {
+                                api.prevent_close();
+                                let _ = window.emit("confirm-close", ());
+                            }
+                        }
                     }
                 }
+                tauri::WindowEvent::Destroyed => {
+                    if window.label() == "main" {
+                        if let Some(state) = window.try_state::<AppState>() {
+                            process::kill_all(&state.processes);
+                        }
+                    }
+                }
+                _ => {}
             }
         })
         .run(tauri::generate_context!())

@@ -3,7 +3,7 @@ import { api, listen } from './js/api.js';
 import { $ } from './js/dom.js';
 import { render } from './js/dashboard.js';
 import { appendLog, updateLogHeader, updateLogCommands, closeLogPanel } from './js/logs.js';
-import { closeContextMenu, closeConfirm } from './js/context-menu.js';
+import { closeContextMenu, closeConfirm, showConfirm } from './js/context-menu.js';
 import { closeDialog } from './js/dialog.js';
 import { applyTheme } from './js/settings.js';
 
@@ -33,6 +33,15 @@ async function init() {
     state.statuses[id] = { running, active_command, url };
     render();
     if (id === state.activeLogId) { updateLogHeader(); updateLogCommands(); }
+  });
+
+  await listen('confirm-close', () => {
+    const count = Object.values(state.statuses).filter(s => s.running).length;
+    showConfirm(
+      `${count} process${count !== 1 ? 'es' : ''} still running. Quit anyway?`,
+      () => api.forceClose(),
+      'Quit'
+    );
   });
 }
 

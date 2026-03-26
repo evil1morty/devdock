@@ -18,6 +18,7 @@ pub struct AppState {
     pub processes: Arc<Mutex<HashMap<String, ProcessState>>>,
     pub config_path: Mutex<PathBuf>,
     pub settings_path: Mutex<PathBuf>,
+    pub force_close: Mutex<bool>,
 }
 
 // ── Settings ───────────────────────────────────────

@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::process;
@@ -560,6 +560,16 @@ pub fn open_in_browser(url: String) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+// ── Window control ─────────────────────────────────
+
+#[tauri::command]
+pub fn force_close(app: AppHandle, state: State<'_, AppState>) {
+    *state.force_close.lock().unwrap() = true;
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.close();
+    }
 }
 
 // ── Config persistence ─────────────────────────────
