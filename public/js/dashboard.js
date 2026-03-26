@@ -22,15 +22,19 @@ export function render() {
   $list.innerHTML = '';
 
   const filter = $search.value.toLowerCase().trim();
-  state.projects.forEach(p => {
-    if (filter && !p.name.toLowerCase().includes(filter)) return;
+  const sorted = [...state.projects].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+  sorted.forEach(p => {
+    if (filter && !p.name.toLowerCase().includes(filter) && !(p.framework || '').toLowerCase().includes(filter)) return;
     $list.appendChild(createRow(p));
   });
 }
 
 function createRow(p) {
   const s = getStatus(p.id);
-  const tr = el('tr', 'project-row' + (p.id === state.activeLogId ? ' active' : ''));
+  let cls = 'project-row';
+  if (p.id === state.activeLogId) cls += ' active';
+  if (p.pinned) cls += ' pinned';
+  const tr = el('tr', cls);
   tr.dataset.id = p.id;
 
   // Status dot
@@ -41,6 +45,7 @@ function createRow(p) {
   const tdName = el('td');
   const nameWrap = el('div', 'name-cell');
   nameWrap.appendChild(el('span', 'project-name', p.name));
+  if (p.pinned) nameWrap.appendChild(el('span', 'pin-icon', '\u{1F4CC}'));
   if (p.framework) nameWrap.appendChild(el('span', 'framework-badge', p.framework));
   tdName.appendChild(nameWrap);
 
@@ -88,7 +93,11 @@ export async function runCommand(id, label, cmd, cwd) {
   const s = getStatus(id);
   if (s.running) {
     try { await api.stopProcess(id); } catch (_) {}
-    await new Promise(r => setTimeout(r, 500));
+    // Wait for process to actually stop (up to 5s)
+    for (let i = 0; i < 50; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      if (!getStatus(id).running) break;
+    }
   }
 
   const $logOut = $('log-output');

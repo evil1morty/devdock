@@ -5,6 +5,13 @@ export const state = {
   activeLogId: null,   // which project's logs are shown
   ctxProjectId: null,  // context menu target
   editingId: null,     // dialog: null = add, string = edit
+  settings: {
+    claude_command: 'claude',
+    editor_command: 'code',
+    theme: 'system',
+    width: 520,
+    height: 680,
+  },
 };
 
 export function getProject(id) {

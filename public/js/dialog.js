@@ -140,6 +140,13 @@ $('btn-save').addEventListener('click', async () => {
   const commands = validateCommands();
   if (!commands) return;
 
+  // Check for duplicate directory
+  const duplicate = state.projects.find(p => p.directory === dir && p.id !== state.editingId);
+  if (duplicate) {
+    $inpDir.classList.add('input-error');
+    return;
+  }
+
   let framework = null;
   try {
     const scan = await api.scanProject(dir);
@@ -150,7 +157,7 @@ $('btn-save').addEventListener('click', async () => {
     const proj = state.projects.find(p => p.id === state.editingId);
     if (proj) Object.assign(proj, { name, directory: dir, commands, framework });
   } else {
-    state.projects.push({ id: crypto.randomUUID(), name, directory: dir, framework, commands });
+    state.projects.push({ id: crypto.randomUUID(), name, directory: dir, framework, commands, pinned: false });
   }
 
   await api.saveConfig(state.projects);

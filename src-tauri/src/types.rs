@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -10,13 +10,42 @@ pub struct ProcessState {
     pub pid: Option<u32>,
     pub running: bool,
     pub active_command: Option<String>,
-    pub logs: Vec<LogLine>,
+    pub logs: VecDeque<LogLine>,
     pub detected_url: Option<String>,
 }
 
 pub struct AppState {
     pub processes: Arc<Mutex<HashMap<String, ProcessState>>>,
     pub config_path: Mutex<PathBuf>,
+    pub settings_path: Mutex<PathBuf>,
+}
+
+// ── Settings ───────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Settings {
+    pub claude_command: String,
+    pub editor_command: String,
+    pub theme: String,
+    #[serde(default = "default_width")]
+    pub width: u32,
+    #[serde(default = "default_height")]
+    pub height: u32,
+}
+
+fn default_width() -> u32 { 520 }
+fn default_height() -> u32 { 680 }
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            claude_command: "claude".into(),
+            editor_command: "code".into(),
+            theme: "system".into(),
+            width: 520,
+            height: 680,
+        }
+    }
 }
 
 // ── Persisted config ───────────────────────────────
@@ -28,6 +57,8 @@ pub struct ProjectConfig {
     pub directory: String,
     pub framework: Option<String>,
     pub commands: Vec<CommandDef>,
+    #[serde(default)]
+    pub pinned: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

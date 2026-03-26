@@ -5,12 +5,23 @@ import { render } from './js/dashboard.js';
 import { appendLog, updateLogHeader, updateLogCommands, closeLogPanel } from './js/logs.js';
 import { closeContextMenu, closeConfirm } from './js/context-menu.js';
 import { closeDialog } from './js/dialog.js';
+import { applyTheme } from './js/settings.js';
 
 // ── Bootstrap ──────────────────────────────────────
 
 async function init() {
+  state.settings = await api.loadSettings();
   state.projects = await api.loadConfig();
   state.statuses = await api.getAllStatus();
+
+  applyTheme(state.settings.theme);
+
+  // Apply saved window size
+  try {
+    const win = window.__TAURI__.window.getCurrentWindow();
+    await win.setSize(new window.__TAURI__.window.LogicalSize(state.settings.width || 520, state.settings.height || 680));
+  } catch (_) {}
+
   render();
 
   await listen('process-log', e => {
@@ -29,13 +40,10 @@ async function init() {
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  const overlay = $('dialog-overlay');
-  const confirm = $('confirm-overlay');
-  const logPanel = $('log-panel');
-
-  if (!overlay.classList.contains('hidden')) closeDialog();
-  else if (!confirm.classList.contains('hidden')) closeConfirm();
-  else if (!logPanel.classList.contains('hidden')) closeLogPanel();
+  if (!$('dialog-overlay').classList.contains('hidden')) { closeDialog(); return; }
+  if (!$('confirm-overlay').classList.contains('hidden')) { closeConfirm(); return; }
+  if (!$('settings-overlay').classList.contains('hidden')) { $('settings-overlay').classList.add('hidden'); return; }
+  if (!$('log-panel').classList.contains('hidden')) closeLogPanel();
   closeContextMenu();
 });
 

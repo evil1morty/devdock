@@ -1,6 +1,6 @@
 import { state, getProject, getStatus } from './state.js';
 import { api } from './api.js';
-import { $, btn, toggle, appendLogLine } from './dom.js';
+import { $, el, btn, toggle, appendLogLine } from './dom.js';
 import { runCommand } from './dashboard.js';
 
 const $logPanel = $('log-panel');
@@ -27,8 +27,14 @@ export async function openLogPanel(id) {
   $logOut.innerHTML = '';
   try {
     const logs = await api.getLogs(id);
-    logs.forEach(l => appendLogLine($logOut, l.text, l.stream));
-  } catch (_) {}
+    if (logs.length === 0) {
+      showEmptyLog();
+    } else {
+      logs.forEach(l => appendLogLine($logOut, l.text, l.stream));
+    }
+  } catch (_) {
+    showEmptyLog();
+  }
 }
 
 export function closeLogPanel() {
@@ -39,7 +45,15 @@ export function closeLogPanel() {
 
 // ── Log output ─────────────────────────────────────
 
+function showEmptyLog() {
+  $logOut.innerHTML = '';
+  $logOut.appendChild(el('div', 'log-empty', 'Logs will appear here when you run a command'));
+}
+
 export function appendLog(text, stream) {
+  // Remove empty state if present
+  const empty = $logOut.querySelector('.log-empty');
+  if (empty) empty.remove();
   appendLogLine($logOut, text, stream);
 }
 

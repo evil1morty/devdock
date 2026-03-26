@@ -23,6 +23,7 @@ pub fn run() {
             app.manage(AppState {
                 processes: Arc::new(Mutex::new(HashMap::new())),
                 config_path: Mutex::new(config_dir.join("projects.json")),
+                settings_path: Mutex::new(config_dir.join("settings.json")),
             });
 
             Ok(())
@@ -36,15 +37,20 @@ pub fn run() {
             commands::get_status,
             commands::get_all_status,
             commands::open_in_explorer,
-            commands::open_in_vscode,
+            commands::open_in_editor,
+            commands::open_in_claude,
             commands::open_in_browser,
             commands::load_config,
             commands::save_config,
+            commands::load_settings,
+            commands::save_settings,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
-                if let Some(state) = window.try_state::<AppState>() {
-                    process::kill_all(&state.processes);
+                if window.label() == "main" {
+                    if let Some(state) = window.try_state::<AppState>() {
+                        process::kill_all(&state.processes);
+                    }
                 }
             }
         })

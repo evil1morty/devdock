@@ -32,13 +32,20 @@ pub fn spawn_shell(command: &str, cwd: &str) -> Result<std::process::Child, Stri
 
 #[cfg(not(windows))]
 pub fn spawn_shell(command: &str, cwd: &str) -> Result<std::process::Child, String> {
-    Command::new("sh")
-        .args(["-c", command])
-        .current_dir(cwd)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| e.to_string())
+    use std::os::unix::process::CommandExt;
+    unsafe {
+        Command::new("sh")
+            .args(["-c", command])
+            .current_dir(cwd)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .pre_exec(|| {
+                libc::setsid();
+                Ok(())
+            })
+            .spawn()
+            .map_err(|e| e.to_string())
+    }
 }
 
 #[cfg(windows)]
@@ -54,8 +61,19 @@ pub fn kill_tree(pid: u32) {
 
 #[cfg(not(windows))]
 pub fn kill_tree(pid: u32) {
+    // Kill entire process group (negative PID) thanks to setsid in spawn
     let _ = Command::new("kill")
-        .args(["-9", &pid.to_string()])
+        .args(["-TERM", &format!("-{}", pid)])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .and_then(|mut c| c.wait());
+    // Force kill after a brief wait
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    let _ = Command::new("kill")
+        .args(["-9", &format!("-{}", pid)])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
         .and_then(|mut c| c.wait());
 }
@@ -70,12 +88,12 @@ fn push_log(
 ) {
     if let Ok(mut map) = procs.lock() {
         if let Some(ps) = map.get_mut(id) {
-            ps.logs.push(LogLine {
+            ps.logs.push_back(LogLine {
                 text,
                 stream: stream.into(),
             });
             if ps.logs.len() > MAX_LOG_LINES {
-                ps.logs.remove(0);
+                ps.logs.pop_front();
             }
         }
     }
@@ -206,7 +224,7 @@ pub fn start(
 
     // Wire stderr
     if let Some(stderr) = child.stderr.take() {
-        spawn_reader(stderr, "stderr", id.clone(), app.clone(), processes.clone(), false);
+        spawn_reader(stderr, "stderr", id.clone(), app.clone(), processes.clone(), true);
     }
 
     // Wait for exit

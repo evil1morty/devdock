@@ -213,9 +213,16 @@ fn scan_makefile(dir: &PathBuf) -> Result<ScanResult, String> {
     let mut commands = Vec::new();
     if let Ok(data) = fs::read_to_string(&path) {
         for line in data.lines() {
-            if let Some(target) = line.strip_suffix(':') {
-                let target = target.trim();
-                if !target.is_empty() && !target.starts_with('.') && !target.contains(' ') {
+            // Match "target:" or "target: deps"
+            if let Some(colon_pos) = line.find(':') {
+                let target = line[..colon_pos].trim();
+                if !target.is_empty()
+                    && !target.starts_with('.')
+                    && !target.starts_with('\t')
+                    && !target.starts_with(' ')
+                    && !target.contains('=')
+                    && !target.contains('$')
+                {
                     commands.push(CommandDef {
                         label: target.to_string(),
                         cmd: format!("make {}", target),
@@ -349,7 +356,7 @@ pub fn get_logs(id: String, state: State<'_, AppState>) -> Vec<LogLine> {
         .processes
         .lock()
         .ok()
-        .and_then(|map| map.get(&id).map(|ps| ps.logs.clone()))
+        .and_then(|map| map.get(&id).map(|ps| ps.logs.iter().cloned().collect()))
         .unwrap_or_default()
 }
 
@@ -411,7 +418,14 @@ pub fn open_in_explorer(directory: String) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(&directory)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
     {
         Command::new("xdg-open")
             .arg(&directory)
@@ -422,11 +436,11 @@ pub fn open_in_explorer(directory: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn open_in_vscode(directory: String) -> Result<(), String> {
+pub fn open_in_editor(directory: String, editor: String) -> Result<(), String> {
     #[cfg(windows)]
     {
         Command::new("cmd")
-            .args(["/C", "code", &directory])
+            .args(["/C", &editor, &directory])
             .creation_flags(CREATE_NO_WINDOW)
             .stdout(Stdio::null())
             .spawn()
@@ -434,7 +448,7 @@ pub fn open_in_vscode(directory: String) -> Result<(), String> {
     }
     #[cfg(not(windows))]
     {
-        Command::new("code")
+        Command::new(&editor)
             .arg(&directory)
             .stdout(Stdio::null())
             .spawn()
@@ -444,17 +458,70 @@ pub fn open_in_vscode(directory: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn open_in_claude(directory: String, claude_command: String) -> Result<(), String> {
+    // Open a new terminal at the project dir and run the claude command
+    #[cfg(windows)]
+    {
+        let temp = std::env::temp_dir().join("devdock_claude.bat");
+        fs::write(&temp, format!("@echo off\ncd /d \"{}\"\n{}\n", directory, claude_command))
+            .map_err(|e| e.to_string())?;
+        Command::new("cmd")
+            .args(["/C", "start", "cmd", "/K", &temp.to_string_lossy().to_string()])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!(
+            "tell application \"Terminal\" to do script \"cd '{}' && {}\"",
+            directory, claude_command
+        );
+        Command::new("osascript")
+            .args(["-e", &script])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // Try common terminals
+        let cmd_str = format!("cd '{}' && {} ; exec bash", directory, claude_command);
+        let terminals = [
+            ("x-terminal-emulator", vec!["-e", "bash", "-c"]),
+            ("gnome-terminal", vec!["--", "bash", "-c"]),
+            ("xterm", vec!["-e", "bash", "-c"]),
+        ];
+        for (term, args) in &terminals {
+            let mut c = Command::new(term);
+            for a in args { c.arg(a); }
+            if c.arg(&cmd_str).spawn().is_ok() {
+                return Ok(());
+            }
+        }
+        return Err("No terminal emulator found".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub fn open_in_browser(url: String) -> Result<(), String> {
     #[cfg(windows)]
     {
         Command::new("cmd")
-            .args(["/C", "start", &url])
+            .args(["/C", "start", "", &url])
             .creation_flags(CREATE_NO_WINDOW)
             .stdout(Stdio::null())
             .spawn()
             .map_err(|e| e.to_string())?;
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
     {
         Command::new("xdg-open")
             .arg(&url)
@@ -484,5 +551,26 @@ pub fn save_config(projects: Vec<ProjectConfig>, state: State<'_, AppState>) -> 
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let json = serde_json::to_string_pretty(&projects).map_err(|e| e.to_string())?;
+    fs::write(&*path, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn load_settings(state: State<'_, AppState>) -> Result<Settings, String> {
+    let path = state.settings_path.lock().map_err(|e| e.to_string())?;
+    if path.exists() {
+        let data = fs::read_to_string(&*path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&data).map_err(|e| e.to_string())
+    } else {
+        Ok(Settings::default())
+    }
+}
+
+#[tauri::command]
+pub fn save_settings(settings: Settings, state: State<'_, AppState>) -> Result<(), String> {
+    let path = state.settings_path.lock().map_err(|e| e.to_string())?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(&*path, json).map_err(|e| e.to_string())
 }
