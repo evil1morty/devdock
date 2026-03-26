@@ -42,8 +42,8 @@ pub fn detect_framework(pkg: &serde_json::Value) -> Option<String> {
     let dev_deps = pkg.get("devDependencies").and_then(|v| v.as_object());
 
     let has = |name: &str| -> bool {
-        deps.map_or(false, |d| d.contains_key(name))
-            || dev_deps.map_or(false, |d| d.contains_key(name))
+        deps.is_some_and(|d| d.contains_key(name))
+            || dev_deps.is_some_and(|d| d.contains_key(name))
     };
 
     // Order matters — more specific frameworks first

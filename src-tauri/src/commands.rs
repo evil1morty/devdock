@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::process::Stdio;
 use tauri::{AppHandle, Manager, State};
@@ -11,10 +11,9 @@ use crate::types::*;
 use crate::util::detect_framework;
 
 #[cfg(windows)]
-use std::os::windows::process::CommandExt;
-
+use crate::process::CREATE_NO_WINDOW_FLAG;
 #[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
+use std::os::windows::process::CommandExt;
 
 // ── Dialog ─────────────────────────────────────────
 
@@ -72,7 +71,7 @@ pub fn scan_project(directory: String) -> Result<ScanResult, String> {
 
 // ── Node.js / Bun ──────────────────────────────────
 
-fn scan_node(dir: &PathBuf) -> Result<ScanResult, String> {
+fn scan_node(dir: &Path) -> Result<ScanResult, String> {
     let data = fs::read_to_string(dir.join("package.json")).map_err(|e| e.to_string())?;
     let pkg: serde_json::Value = serde_json::from_str(&data).map_err(|e| e.to_string())?;
 
@@ -116,7 +115,7 @@ fn scan_node(dir: &PathBuf) -> Result<ScanResult, String> {
 
 // ── Rust / Cargo ───────────────────────────────────
 
-fn scan_cargo(dir: &PathBuf) -> Result<ScanResult, String> {
+fn scan_cargo(dir: &Path) -> Result<ScanResult, String> {
     let data = fs::read_to_string(dir.join("Cargo.toml")).map_err(|e| e.to_string())?;
     let name = data.lines()
         .find(|l| l.starts_with("name"))
@@ -138,7 +137,7 @@ fn scan_cargo(dir: &PathBuf) -> Result<ScanResult, String> {
 
 // ── Python ─────────────────────────────────────────
 
-fn scan_python(dir: &PathBuf) -> Result<ScanResult, String> {
+fn scan_python(dir: &Path) -> Result<ScanResult, String> {
     let name = dir.file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
@@ -177,7 +176,7 @@ fn scan_python(dir: &PathBuf) -> Result<ScanResult, String> {
 
 // ── Go ─────────────────────────────────────────────
 
-fn scan_go(dir: &PathBuf) -> Result<ScanResult, String> {
+fn scan_go(dir: &Path) -> Result<ScanResult, String> {
     let data = fs::read_to_string(dir.join("go.mod")).map_err(|e| e.to_string())?;
     let name = data.lines()
         .find(|l| l.starts_with("module"))
@@ -199,7 +198,7 @@ fn scan_go(dir: &PathBuf) -> Result<ScanResult, String> {
 
 // ── Makefile ───────────────────────────────────────
 
-fn scan_makefile(dir: &PathBuf) -> Result<ScanResult, String> {
+fn scan_makefile(dir: &Path) -> Result<ScanResult, String> {
     let name = dir.file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
@@ -237,7 +236,7 @@ fn scan_makefile(dir: &PathBuf) -> Result<ScanResult, String> {
 
 // ── PHP / Composer ─────────────────────────────────
 
-fn scan_php(dir: &PathBuf) -> Result<ScanResult, String> {
+fn scan_php(dir: &Path) -> Result<ScanResult, String> {
     let data = fs::read_to_string(dir.join("composer.json")).map_err(|e| e.to_string())?;
     let pkg: serde_json::Value = serde_json::from_str(&data).map_err(|e| e.to_string())?;
 
@@ -250,8 +249,8 @@ fn scan_php(dir: &PathBuf) -> Result<ScanResult, String> {
     let require = pkg.get("require").and_then(|v| v.as_object());
     let require_dev = pkg.get("require-dev").and_then(|v| v.as_object());
     let has = |dep: &str| -> bool {
-        require.map_or(false, |d| d.contains_key(dep))
-            || require_dev.map_or(false, |d| d.contains_key(dep))
+        require.is_some_and(|d| d.contains_key(dep))
+            || require_dev.is_some_and(|d| d.contains_key(dep))
     };
 
     let framework = if has("laravel/framework") {
@@ -298,7 +297,7 @@ fn scan_php(dir: &PathBuf) -> Result<ScanResult, String> {
 
 // ── Docker Compose ─────────────────────────────────
 
-fn scan_docker_compose(dir: &PathBuf) -> Result<ScanResult, String> {
+fn scan_docker_compose(dir: &Path) -> Result<ScanResult, String> {
     let name = dir.file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
@@ -414,7 +413,7 @@ pub fn open_in_explorer(directory: String) -> Result<(), String> {
     {
         Command::new("explorer")
             .arg(&directory)
-            .creation_flags(CREATE_NO_WINDOW)
+            .creation_flags(CREATE_NO_WINDOW_FLAG)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
@@ -441,7 +440,7 @@ pub fn open_in_editor(directory: String, editor: String) -> Result<(), String> {
     {
         Command::new("cmd")
             .args(["/C", &editor, &directory])
-            .creation_flags(CREATE_NO_WINDOW)
+            .creation_flags(CREATE_NO_WINDOW_FLAG)
             .stdout(Stdio::null())
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -479,7 +478,7 @@ pub fn open_in_claude(
                     "-d", &directory,
                     "cmd", "/K", &claude_command,
                 ])
-                .creation_flags(CREATE_NO_WINDOW)
+                .creation_flags(CREATE_NO_WINDOW_FLAG)
                 .spawn()
                 .map_err(|e| e.to_string())?;
         } else {
@@ -491,7 +490,7 @@ pub fn open_in_claude(
             )).map_err(|e| e.to_string())?;
             Command::new("cmd")
                 .args(["/C", "start", "cmd", "/K", &temp.to_string_lossy().to_string()])
-                .creation_flags(CREATE_NO_WINDOW)
+                .creation_flags(CREATE_NO_WINDOW_FLAG)
                 .spawn()
                 .map_err(|e| e.to_string())?;
         }
@@ -540,7 +539,7 @@ pub fn open_in_browser(url: String) -> Result<(), String> {
     {
         Command::new("cmd")
             .args(["/C", "start", "", &url])
-            .creation_flags(CREATE_NO_WINDOW)
+            .creation_flags(CREATE_NO_WINDOW_FLAG)
             .stdout(Stdio::null())
             .spawn()
             .map_err(|e| e.to_string())?;

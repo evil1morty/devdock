@@ -12,7 +12,7 @@ use crate::util::{detect_url, strip_ansi};
 use std::os::windows::process::CommandExt;
 
 #[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
+pub const CREATE_NO_WINDOW_FLAG: u32 = 0x08000000;
 
 // ── Windows Job Object ─────────────────────────────
 // Ensures all child processes die when OneRun exits, even on crash/force-kill.
@@ -80,7 +80,7 @@ pub fn spawn_shell(command: &str, cwd: &str) -> Result<std::process::Child, Stri
         .current_dir(cwd)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .creation_flags(CREATE_NO_WINDOW)
+        .creation_flags(CREATE_NO_WINDOW_FLAG)
         .spawn()
         .map_err(|e| e.to_string())
 }
@@ -107,7 +107,7 @@ pub fn spawn_shell(command: &str, cwd: &str) -> Result<std::process::Child, Stri
 pub fn kill_tree(pid: u32) {
     let _ = Command::new("taskkill")
         .args(["/T", "/F", "/PID", &pid.to_string()])
-        .creation_flags(CREATE_NO_WINDOW)
+        .creation_flags(CREATE_NO_WINDOW_FLAG)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()

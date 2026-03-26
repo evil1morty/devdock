@@ -224,8 +224,6 @@ body {
   flex-shrink: 0;
 }
 .num-btn:hover { background: var(--accent); color: #fff; }
-.number-wrap:hover .num-btn { background: var(--bg4); }
-.number-wrap .num-btn:hover { background: var(--accent); color: #fff; }
 .setting-hint code { background: var(--bg4); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
 
 .settings-about {
