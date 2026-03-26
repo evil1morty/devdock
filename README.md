@@ -1,10 +1,10 @@
 <p align="center">
   <img src="images/icon.png" width="64" />
 </p>
-<h1 align="center">DevDock</h1>
-<p align="center">A tiny desktop app to manage your dev servers. One click to start, one click to stop.</p>
+<h1 align="center">OneRun</h1>
+<p align="center">One app to run them all. Without the tab chaos.</p>
 
-![DevDock](images/screenshot.png)
+![OneRun](images/screenshot.png)
 
 ## Why
 
@@ -29,7 +29,7 @@ I just wanted a simple app where I could see all my projects, hit play, and chec
 
 ## Download
 
-Grab the latest release for your platform from [Releases](https://github.com/evil1morty/devdock/releases).
+Grab the latest release for your platform from [Releases](https://github.com/evil1morty/onerun/releases).
 
 | Platform | File |
 |----------|------|
@@ -42,8 +42,8 @@ Grab the latest release for your platform from [Releases](https://github.com/evi
 Requires [Node.js](https://nodejs.org/) 18+, [Rust](https://rustup.rs/), and on Windows [VS Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with C++ workload.
 
 ```bash
-git clone https://github.com/evil1morty/devdock.git
-cd devdock
+git clone https://github.com/evil1morty/onerun.git
+cd onerun
 npm install
 npx tauri build
 ```

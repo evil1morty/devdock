@@ -462,7 +462,7 @@ pub fn open_in_claude(directory: String, claude_command: String) -> Result<(), S
     // Open a new terminal at the project dir and run the claude command
     #[cfg(windows)]
     {
-        let temp = std::env::temp_dir().join("devdock_claude.bat");
+        let temp = std::env::temp_dir().join("onerun_claude.bat");
         fs::write(&temp, format!("@echo off\ncd /d \"{}\"\n{}\n", directory, claude_command))
             .map_err(|e| e.to_string())?;
         Command::new("cmd")

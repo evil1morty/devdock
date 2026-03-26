@@ -64,7 +64,7 @@ document.querySelectorAll('.num-btn').forEach(b => {
 
 $('about-github').addEventListener('click', (e) => {
   e.preventDefault();
-  api.openInBrowser('https://github.com/evil1morty/devdock');
+  api.openInBrowser('https://github.com/evil1morty/onerun');
 });
 
 $('btn-settings').addEventListener('click', openSettings);

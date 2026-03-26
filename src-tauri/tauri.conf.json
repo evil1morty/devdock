@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "DevDock",
+  "productName": "OneRun",
   "version": "0.1.0",
-  "identifier": "com.devdock.app",
+  "identifier": "com.onerun.app",
   "build": {
     "frontendDist": "../public"
   },
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "DevDock",
+        "title": "OneRun",
         "label": "main",
         "width": 520,
         "height": 680,
