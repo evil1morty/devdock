@@ -1,6 +1,6 @@
 {
   "name": "onerun",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A lightweight desktop app to manage all your dev servers in one place",
   "private": true,
   "scripts": {
