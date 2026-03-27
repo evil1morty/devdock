@@ -1,4 +1,4 @@
-import { state, getProject, getStatus } from './state.js';
+import { state, getProject, getStatus, getCmdStatus } from './state.js';
 import { api } from './api.js';
 import { $, el, btn, toggle, appendLogLine } from './dom.js';
 import { runCommand } from './dashboard.js';
@@ -6,8 +6,7 @@ import { runCommand } from './dashboard.js';
 const $logPanel = $('log-panel');
 const $dash     = $('dashboard');
 const $logName  = $('log-project-name');
-const $logCmd   = $('log-active-cmd');
-const $logCmds  = $('log-commands');
+const $logTabs  = $('log-tabs');
 const $logOut   = $('log-output');
 
 // ── Open / Close ───────────────────────────────────
@@ -17,18 +16,48 @@ export async function openLogPanel(id) {
   const proj = getProject(id);
   if (!proj) return;
 
+  // Pick default tab: first running command, or first command
+  const cmds = state.statuses[id] || {};
+  const runningLabel = proj.commands.find(c => cmds[c.label]?.running)?.label;
+  state.activeLogTab = runningLabel || proj.commands[0]?.label || null;
+
   toggle($logPanel, true);
   $dash.classList.add('blurred');
   updateLogHeader();
-  updateLogCommands();
+  updateLogTabs();
 
   document.querySelectorAll('.project-row').forEach(r => {
     r.classList.toggle('active', r.dataset.id === id);
   });
 
+  await loadTabLogs();
+}
+
+export function closeLogPanel() {
+  toggle($logPanel, false);
+  $dash.classList.remove('blurred');
+  state.activeLogId = null;
+  state.activeLogTab = null;
+  document.querySelectorAll('.project-row').forEach(r => r.classList.remove('active'));
+}
+
+// ── Tab switching ──────────────────────────────────
+
+export async function switchTab(label) {
+  if (label === state.activeLogTab) return;
+  state.activeLogTab = label;
+  updateLogTabs();
+  await loadTabLogs();
+}
+
+async function loadTabLogs() {
   $logOut.innerHTML = '';
+  if (!state.activeLogId || !state.activeLogTab) {
+    showEmptyLog();
+    return;
+  }
   try {
-    const logs = await api.getLogs(id);
+    const logs = await api.getLogs(state.activeLogId, state.activeLogTab);
     if (logs.length === 0) {
       showEmptyLog();
     } else {
@@ -37,13 +66,6 @@ export async function openLogPanel(id) {
   } catch (_) {
     showEmptyLog();
   }
-}
-
-export function closeLogPanel() {
-  toggle($logPanel, false);
-  $dash.classList.remove('blurred');
-  state.activeLogId = null;
-  document.querySelectorAll('.project-row').forEach(r => r.classList.remove('active'));
 }
 
 // ── Log output ─────────────────────────────────────
@@ -60,34 +82,49 @@ export function appendLog(text, stream) {
   appendLogLine($logOut, text, stream);
 }
 
-// ── Header & command bar ───────────────────────────
+// ── Header & tab bar ───────────────────────────────
 
 export function updateLogHeader() {
   const proj = getProject(state.activeLogId);
-  const s = getStatus(state.activeLogId);
   $logName.textContent = proj?.name || '';
-  $logCmd.textContent = s.active_command || '';
 }
 
-export function updateLogCommands() {
-  $logCmds.innerHTML = '';
+export function updateLogTabs() {
+  $logTabs.innerHTML = '';
   const proj = getProject(state.activeLogId);
   if (!proj) return;
 
-  const s = getStatus(state.activeLogId);
-
   proj.commands.forEach(c => {
-    const b = btn(
-      'log-cmd-btn' + (s.running && s.active_command === c.label ? ' active' : ''),
-      c.label,
-      () => runCommand(proj.id, c.label, c.cmd, proj.directory, proj.env)
-    );
-    $logCmds.appendChild(b);
+    const cs = getCmdStatus(proj.id, c.label);
+    const isActive = c.label === state.activeLogTab;
+
+    let cls = 'log-tab';
+    if (isActive) cls += ' active';
+    if (cs.running) cls += ' running';
+
+    const tab = el('button', cls);
+
+    // Green dot for running commands
+    if (cs.running) {
+      tab.appendChild(el('span', 'tab-dot'));
+    }
+
+    tab.appendChild(document.createTextNode(c.label));
+    tab.addEventListener('click', () => switchTab(c.label));
+    $logTabs.appendChild(tab);
   });
 
-  if (s.running) {
-    $logCmds.appendChild(
-      btn('log-cmd-btn stop-btn', 'Stop', () => api.stopProcess(state.activeLogId))
+  // Action buttons for current tab
+  const cs = getCmdStatus(proj.id, state.activeLogTab);
+  const cmd = proj.commands.find(c => c.label === state.activeLogTab);
+
+  if (cs.running) {
+    $logTabs.appendChild(
+      btn('log-tab-action stop-action', '\u25A0', () => api.stopProcess(proj.id, state.activeLogTab))
+    );
+  } else if (cmd) {
+    $logTabs.appendChild(
+      btn('log-tab-action run-action', '\u25B6', () => runCommand(proj.id, cmd.label, cmd.cmd, proj.directory, proj.env))
     );
   }
 }

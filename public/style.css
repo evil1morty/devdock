@@ -519,6 +519,7 @@ body {
 }
 .ctx-cmd:hover { background: var(--bg4); }
 .ctx-cmd .ctx-icon { color: var(--green); }
+.ctx-cmd .ctx-running-icon { color: var(--green); font-size: 10px; }
 
 /* ── Log panel ──────────────────────────────────── */
 #log-panel {
@@ -550,15 +551,6 @@ body {
   font-weight: 600;
   font-size: 13px;
 }
-.log-cmd-badge {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 3px;
-  background: rgba(63,185,80,.15);
-  color: var(--green);
-}
-.log-cmd-badge:empty { display: none; }
 
 .log-actions {
   display: flex;
@@ -577,47 +569,87 @@ body {
 }
 .log-actions button:hover { background: var(--bg4); color: var(--text); }
 
-/* Command bar in log panel */
-#log-commands {
+/* Command tabs in log panel */
+#log-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  padding: 8px 14px;
+  align-items: center;
+  gap: 0;
+  padding: 0 14px;
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-#log-commands:empty { display: none; padding: 0; }
+#log-tabs:empty { display: none; }
 
-.log-cmd-btn {
-  padding: 4px 12px;
+.log-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
   font-size: 11px;
   font-weight: 500;
   font-family: var(--sans);
-  background: var(--bg4);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: none;
+  color: var(--text2);
+  border: none;
+  border-bottom: 2px solid transparent;
   cursor: pointer;
   transition: all .15s;
+  white-space: nowrap;
 }
-.log-cmd-btn:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+.log-tab:hover {
+  color: var(--text);
+  background: var(--bg3);
 }
-.log-cmd-btn.active {
+.log-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.log-tab.running {
+  color: var(--green);
+}
+.log-tab.active.running {
+  border-bottom-color: var(--green);
+}
+
+.tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  display: inline-block;
+  box-shadow: 0 0 6px rgba(63,185,80,.5);
+}
+
+/* Play/Stop action buttons in tab bar */
+.log-tab-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  font-size: 12px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all .12s;
+}
+.run-action {
+  color: var(--green);
+}
+.run-action:hover {
   background: var(--green);
   border-color: var(--green);
   color: #fff;
 }
-.log-cmd-btn.stop-btn {
-  background: transparent;
-  border-color: var(--red);
+.stop-action {
   color: var(--red);
 }
-.log-cmd-btn.stop-btn:hover {
+.stop-action:hover {
   background: var(--red);
+  border-color: var(--red);
   color: #fff;
 }
 

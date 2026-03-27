@@ -1,4 +1,4 @@
-import { state, getProject, getStatus } from './state.js';
+import { state, getProject, getStatus, getCmdStatus } from './state.js';
 import { api } from './api.js';
 import { $, el, btn, toggle, closeOnBackdrop } from './dom.js';
 import { render, runCommand } from './dashboard.js';
@@ -15,14 +15,18 @@ export function openContextMenu(id, e) {
   const proj = getProject(id);
   const s = getStatus(id);
 
-  // Command buttons (hidden when running)
+  // Command buttons — always shown (even when running)
   $ctxCmds.innerHTML = '';
-  const showCmds = proj && proj.commands.length > 0 && !s.running;
+  const showCmds = proj && proj.commands.length > 0;
   if (showCmds) {
     proj.commands.forEach(c => {
+      const cs = getCmdStatus(id, c.label);
       const b = el('button', 'ctx-cmd');
-      const icon = el('span', 'ctx-icon', '\u25B6');
-      b.appendChild(icon);
+      if (cs.running) {
+        b.appendChild(el('span', 'ctx-icon ctx-running-icon', '\u25CF'));
+      } else {
+        b.appendChild(el('span', 'ctx-icon', '\u25B6'));
+      }
       b.appendChild(document.createTextNode(' ' + c.label));
       b.addEventListener('click', () => {
         runCommand(id, c.label, c.cmd, proj.directory, proj.env);
@@ -34,7 +38,7 @@ export function openContextMenu(id, e) {
 
   toggle($('div-cmds'), showCmds);
   toggle($ctx.querySelector('[data-action="stop"]'), s.running);
-  toggle($ctx.querySelector('[data-action="restart"]'), s.running);
+  toggle($ctx.querySelector('[data-action="restart"]'), false); // removed — use per-command restart
   toggle($('div-process'), s.running);
   $ctx.querySelector('[data-action="browser"]').disabled = !s.url;
 
@@ -89,12 +93,18 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
 
     switch (action) {
       case 'stop':
-        api.stopProcess(id);
+        api.stopAll(id);
         break;
       case 'restart':
-        if (s.active_command && proj) {
-          const cmd = proj.commands.find(c => c.label === s.active_command);
-          if (cmd) runCommand(id, cmd.label, cmd.cmd, proj.directory, proj.env);
+        // Restart all currently running commands
+        if (proj) {
+          const cmds = s.commands || {};
+          Object.entries(cmds).forEach(([label, cs]) => {
+            if (cs.running) {
+              const cmd = proj.commands.find(c => c.label === label);
+              if (cmd) runCommand(id, cmd.label, cmd.cmd, proj.directory, proj.env);
+            }
+          });
         }
         break;
       case 'browser':
@@ -122,7 +132,7 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
       case 'remove':
         showConfirm(`Remove "${proj?.name}"?`, async () => {
           if (s.running) {
-            try { await api.stopProcess(id); } catch (_) {}
+            try { await api.stopAll(id); } catch (_) {}
           }
           state.projects = state.projects.filter(p => p.id !== id);
           await api.saveConfig(state.projects);

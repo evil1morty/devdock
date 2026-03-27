@@ -104,6 +104,7 @@ pub fn run() {
             commands::scan_project,
             commands::start_process,
             commands::stop_process,
+            commands::stop_all_processes,
             commands::get_logs,
             commands::get_status,
             commands::get_all_status,

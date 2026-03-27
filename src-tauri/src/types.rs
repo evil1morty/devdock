@@ -7,11 +7,11 @@ use crate::util::UrlConfidence;
 
 // ── Runtime state ──────────────────────────────────
 
+/// Per-command process state.  Keyed by `"{project_id}::{label}"` in the map.
 #[derive(Default)]
 pub struct ProcessState {
     pub pid: Option<u32>,
     pub running: bool,
-    pub active_command: Option<String>,
     pub logs: VecDeque<LogLine>,
     pub detected_url: Option<String>,
     pub url_confidence: UrlConfidence,
@@ -91,6 +91,7 @@ pub struct CommandDef {
 #[derive(Serialize, Clone)]
 pub struct LogPayload {
     pub id: String,
+    pub label: String,
     pub text: String,
     pub stream: String,
 }
@@ -98,8 +99,8 @@ pub struct LogPayload {
 #[derive(Serialize, Clone)]
 pub struct StatusPayload {
     pub id: String,
+    pub label: String,
     pub running: bool,
-    pub active_command: Option<String>,
     pub url: Option<String>,
 }
 
@@ -109,6 +110,13 @@ pub struct LogLine {
     pub stream: String,
 }
 
+/// Per-command status returned by get_all_status.
+#[derive(Serialize, Clone)]
+pub struct CmdStatusPayload {
+    pub running: bool,
+    pub url: Option<String>,
+}
+
 // ── Scan result ────────────────────────────────────
 
 #[derive(Serialize)]
@@ -116,4 +124,16 @@ pub struct ScanResult {
     pub name: String,
     pub framework: Option<String>,
     pub commands: Vec<CommandDef>,
+}
+
+// ── Key helpers ────────────────────────────────────
+
+/// Build the composite key used in the process map.
+pub fn process_key(id: &str, label: &str) -> String {
+    format!("{}::{}", id, label)
+}
+
+/// Parse a composite key back to (project_id, label).
+pub fn parse_key(key: &str) -> (&str, &str) {
+    key.split_once("::").unwrap_or((key, ""))
 }

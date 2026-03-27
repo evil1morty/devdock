@@ -2,7 +2,7 @@ import { state } from './js/state.js';
 import { api, listen } from './js/api.js';
 import { $ } from './js/dom.js';
 import { render } from './js/dashboard.js';
-import { appendLog, updateLogHeader, updateLogCommands, closeLogPanel } from './js/logs.js';
+import { appendLog, updateLogHeader, updateLogTabs, closeLogPanel } from './js/logs.js';
 import { closeContextMenu, closeConfirm, showConfirm } from './js/context-menu.js';
 import { closeDialog } from './js/dialog.js';
 import { applyTheme } from './js/settings.js';
@@ -25,18 +25,27 @@ async function init() {
   render();
 
   await listen('process-log', e => {
-    if (e.payload.id === state.activeLogId) appendLog(e.payload.text, e.payload.stream);
+    const { id, label, text, stream } = e.payload;
+    if (id === state.activeLogId && label === state.activeLogTab) {
+      appendLog(text, stream);
+    }
   });
 
   await listen('process-status', e => {
-    const { id, running, active_command, url } = e.payload;
-    state.statuses[id] = { running, active_command, url };
+    const { id, label, running, url } = e.payload;
+    if (!state.statuses[id]) state.statuses[id] = {};
+    state.statuses[id][label] = { running, url };
     render();
-    if (id === state.activeLogId) { updateLogHeader(); updateLogCommands(); }
+    if (id === state.activeLogId) { updateLogHeader(); updateLogTabs(); }
   });
 
   await listen('confirm-close', () => {
-    const count = Object.values(state.statuses).filter(s => s.running).length;
+    let count = 0;
+    for (const cmds of Object.values(state.statuses)) {
+      for (const s of Object.values(cmds)) {
+        if (s.running) count++;
+      }
+    }
     showConfirm(
       `${count} process${count !== 1 ? 'es' : ''} still running. Quit anyway?`,
       () => api.forceClose(),

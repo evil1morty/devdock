@@ -5,8 +5,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tauri::{AppHandle, Emitter};
 
-use crate::types::{EnvVar, LogLine, LogPayload, ProcessState, StatusPayload};
-use crate::util::{detect_url, strip_ansi};
+use crate::types::{EnvVar, LogLine, LogPayload, ProcessState, StatusPayload, process_key};
+use crate::util::{UrlConfidence, detect_url, strip_ansi};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -141,12 +141,12 @@ pub fn kill_tree(pid: u32) {
 
 fn push_log(
     procs: &Arc<Mutex<HashMap<String, ProcessState>>>,
-    id: &str,
+    key: &str,
     text: String,
     stream: &str,
 ) {
     if let Ok(mut map) = procs.lock() {
-        if let Some(ps) = map.get_mut(id) {
+        if let Some(ps) = map.get_mut(key) {
             ps.logs.push_back(LogLine {
                 text,
                 stream: stream.into(),
@@ -165,7 +165,9 @@ fn push_log(
 fn spawn_reader(
     stream: impl std::io::Read + Send + 'static,
     stream_name: &'static str,
+    key: String,
     id: String,
+    label: String,
     app: AppHandle,
     procs: Arc<Mutex<HashMap<String, ProcessState>>>,
     detect_urls: bool,
@@ -178,10 +180,7 @@ fn spawn_reader(
             if detect_urls {
                 if let Some((url, confidence)) = detect_url(&clean) {
                     if let Ok(mut map) = procs.lock() {
-                        if let Some(ps) = map.get_mut(&id) {
-                            // Only overwrite if new confidence >= stored confidence.
-                            // This prevents a backend "Server listening on :3001"
-                            // from replacing a frontend "Local: http://localhost:5173".
+                        if let Some(ps) = map.get_mut(&key) {
                             let dominated = ps.detected_url.is_some()
                                 && confidence < ps.url_confidence;
                             let unchanged = ps.detected_url.as_ref() == Some(&url);
@@ -192,8 +191,8 @@ fn spawn_reader(
                                     "process-status",
                                     StatusPayload {
                                         id: id.clone(),
+                                        label: label.clone(),
                                         running: true,
-                                        active_command: ps.active_command.clone(),
                                         url: Some(url),
                                     },
                                 );
@@ -203,11 +202,12 @@ fn spawn_reader(
                 }
             }
 
-            push_log(&procs, &id, clean.clone(), stream_name);
+            push_log(&procs, &key, clean.clone(), stream_name);
             let _ = app.emit(
                 "process-log",
                 LogPayload {
                     id: id.clone(),
+                    label: label.clone(),
                     text: clean,
                     stream: stream_name.into(),
                 },
@@ -221,27 +221,28 @@ fn spawn_reader(
 /// Start a shell process, wire up log streaming, and track it in state.
 pub fn start(
     id: String,
-    command: String,
     label: String,
+    command: String,
     cwd: String,
     env: Vec<EnvVar>,
     app: AppHandle,
     processes: Arc<Mutex<HashMap<String, ProcessState>>>,
 ) -> Result<(), String> {
-    // Mark as running
+    let key = process_key(&id, &label);
+
+    // Mark as running (only checks THIS command slot, not other commands)
     {
         let mut map = processes.lock().map_err(|e| e.to_string())?;
-        if let Some(ps) = map.get(&id) {
+        if let Some(ps) = map.get(&key) {
             if ps.running {
                 return Err("Already running".into());
             }
         }
-        let ps = map.entry(id.clone()).or_default();
+        let ps = map.entry(key.clone()).or_default();
         ps.logs.clear();
         ps.running = true;
-        ps.active_command = Some(label.clone());
         ps.detected_url = None;
-        ps.url_confidence = crate::util::UrlConfidence::Normal;
+        ps.url_confidence = UrlConfidence::Normal;
     }
 
     // Spawn
@@ -249,16 +250,15 @@ pub fn start(
         Ok(c) => c,
         Err(e) => {
             let mut map = processes.lock().unwrap();
-            if let Some(ps) = map.get_mut(&id) {
+            if let Some(ps) = map.get_mut(&key) {
                 ps.running = false;
-                ps.active_command = None;
             }
             let _ = app.emit(
                 "process-status",
                 StatusPayload {
                     id,
+                    label,
                     running: false,
-                    active_command: None,
                     url: None,
                 },
             );
@@ -271,7 +271,7 @@ pub fn start(
     assign_to_job(pid);
     {
         let mut map = processes.lock().unwrap();
-        if let Some(ps) = map.get_mut(&id) {
+        if let Some(ps) = map.get_mut(&key) {
             ps.pid = Some(pid);
         }
     }
@@ -280,48 +280,53 @@ pub fn start(
         "process-status",
         StatusPayload {
             id: id.clone(),
+            label: label.clone(),
             running: true,
-            active_command: Some(label),
             url: None,
         },
     );
 
     // Wire stdout
     if let Some(stdout) = child.stdout.take() {
-        spawn_reader(stdout, "stdout", id.clone(), app.clone(), processes.clone(), true);
+        spawn_reader(
+            stdout, "stdout",
+            key.clone(), id.clone(), label.clone(),
+            app.clone(), processes.clone(), true,
+        );
     }
 
     // Wire stderr
     if let Some(stderr) = child.stderr.take() {
-        spawn_reader(stderr, "stderr", id.clone(), app.clone(), processes.clone(), true);
+        spawn_reader(
+            stderr, "stderr",
+            key.clone(), id.clone(), label.clone(),
+            app.clone(), processes.clone(), true,
+        );
     }
 
     // Wait for exit
+    let key_c = key;
     let id_c = id;
+    let label_c = label;
     let app_c = app;
     let procs_c = processes;
     thread::spawn(move || {
         let _ = child.wait();
-        let url;
         {
             let mut map = procs_c.lock().unwrap();
-            if let Some(ps) = map.get_mut(&id_c) {
+            if let Some(ps) = map.get_mut(&key_c) {
                 ps.running = false;
                 ps.pid = None;
                 ps.detected_url = None;
-                url = None;
-                ps.active_command = None;
-            } else {
-                url = None;
             }
         }
         let _ = app_c.emit(
             "process-status",
             StatusPayload {
                 id: id_c,
+                label: label_c,
                 running: false,
-                active_command: None,
-                url,
+                url: None,
             },
         );
     });
@@ -329,19 +334,42 @@ pub fn start(
     Ok(())
 }
 
-/// Stop a running process by killing its tree.
+/// Stop a specific command by project id + label.
 pub fn stop(
     id: &str,
+    label: &str,
     processes: &Arc<Mutex<HashMap<String, ProcessState>>>,
 ) -> Result<(), String> {
+    let key = process_key(id, label);
     let map = processes.lock().map_err(|e| e.to_string())?;
-    if let Some(ps) = map.get(id) {
+    if let Some(ps) = map.get(&key) {
         if let Some(pid) = ps.pid {
             kill_tree(pid);
             return Ok(());
         }
     }
     Err("Not running".into())
+}
+
+/// Stop ALL running commands for a project.
+pub fn stop_all(
+    id: &str,
+    processes: &Arc<Mutex<HashMap<String, ProcessState>>>,
+) -> Result<(), String> {
+    let prefix = format!("{}::", id);
+    let map = processes.lock().map_err(|e| e.to_string())?;
+    let mut found = false;
+    for (key, ps) in map.iter() {
+        if key.starts_with(&prefix) {
+            if let Some(pid) = ps.pid {
+                if ps.running {
+                    kill_tree(pid);
+                    found = true;
+                }
+            }
+        }
+    }
+    if found { Ok(()) } else { Err("Nothing running".into()) }
 }
 
 /// Kill all tracked processes (used on app shutdown).

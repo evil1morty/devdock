@@ -1,4 +1,4 @@
-import { state, getStatus } from './state.js';
+import { state, getStatus, getCmdStatus } from './state.js';
 import { api } from './api.js';
 import { $, el, btn, toggle, appendLogLine } from './dom.js';
 import { openContextMenu } from './context-menu.js';
@@ -56,7 +56,7 @@ function createRow(p) {
     link.addEventListener('click', e => { e.stopPropagation(); api.openInBrowser(s.url); });
     tdUrl.appendChild(link);
   } else {
-    tdUrl.appendChild(el('span', 'url-placeholder', s.running ? 'detecting...' : '—'));
+    tdUrl.appendChild(el('span', 'url-placeholder', s.running ? 'detecting...' : '\u2014'));
   }
 
   // Play / Stop
@@ -64,7 +64,7 @@ function createRow(p) {
   const playBtn = btn('play-btn' + (s.running ? ' running' : ''), null, e => {
     e.stopPropagation();
     if (s.running) {
-      api.stopProcess(p.id);
+      api.stopAll(p.id);
     } else {
       const devCmd = (p.commands || []).find(c =>
         ['dev', 'start', 'serve'].includes(c.label)
@@ -73,7 +73,7 @@ function createRow(p) {
     }
   });
   playBtn.innerHTML = s.running ? '&#9632;' : '&#9654;';
-  playBtn.title = s.running ? 'Stop' : 'Start dev';
+  playBtn.title = s.running ? 'Stop all' : 'Start dev';
   tdQuick.appendChild(playBtn);
 
   // 3-dot menu
@@ -90,17 +90,18 @@ function createRow(p) {
 // ── Run command (shared) ───────────────────────────
 
 export async function runCommand(id, label, cmd, cwd, env = []) {
-  const s = getStatus(id);
-  if (s.running) {
-    try { await api.stopProcess(id); } catch (_) {}
+  // Only stop if the SAME command is already running (restart)
+  const cs = getCmdStatus(id, label);
+  if (cs.running) {
+    try { await api.stopProcess(id, label); } catch (_) {}
     for (let i = 0; i < 50; i++) {
       await new Promise(r => setTimeout(r, 100));
-      if (!getStatus(id).running) break;
+      if (!getCmdStatus(id, label).running) break;
     }
   }
 
   const $logOut = $('log-output');
-  if (id === state.activeLogId) {
+  if (id === state.activeLogId && label === state.activeLogTab) {
     $logOut.innerHTML = '';
     appendLogLine($logOut, `$ ${cmd}`, 'info');
   }
@@ -108,7 +109,9 @@ export async function runCommand(id, label, cmd, cwd, env = []) {
   try {
     await api.startProcess(id, cmd, label, cwd, env);
   } catch (err) {
-    if (id === state.activeLogId) appendLogLine($logOut, `Error: ${err}`, 'stderr');
+    if (id === state.activeLogId && label === state.activeLogTab) {
+      appendLogLine($logOut, `Error: ${err}`, 'stderr');
+    }
   }
 }
 

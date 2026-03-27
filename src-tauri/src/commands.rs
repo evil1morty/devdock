@@ -341,68 +341,75 @@ pub fn start_process(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    process::start(id, command, label, cwd, env, app, state.processes.clone())
+    process::start(id, label, command, cwd, env, app, state.processes.clone())
 }
 
 #[tauri::command]
-pub fn stop_process(id: String, state: State<'_, AppState>) -> Result<(), String> {
-    process::stop(&id, &state.processes)
+pub fn stop_process(id: String, label: String, state: State<'_, AppState>) -> Result<(), String> {
+    process::stop(&id, &label, &state.processes)
+}
+
+#[tauri::command]
+pub fn stop_all_processes(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    process::stop_all(&id, &state.processes)
 }
 
 // ── Status queries ─────────────────────────────────
 
 #[tauri::command]
-pub fn get_logs(id: String, state: State<'_, AppState>) -> Vec<LogLine> {
+pub fn get_logs(id: String, label: String, state: State<'_, AppState>) -> Vec<LogLine> {
+    let key = process_key(&id, &label);
     state
         .processes
         .lock()
         .ok()
-        .and_then(|map| map.get(&id).map(|ps| ps.logs.iter().cloned().collect()))
+        .and_then(|map| map.get(&key).map(|ps| ps.logs.iter().cloned().collect()))
         .unwrap_or_default()
 }
 
 #[tauri::command]
-pub fn get_status(id: String, state: State<'_, AppState>) -> StatusPayload {
-    state
-        .processes
-        .lock()
-        .ok()
-        .and_then(|map| {
-            map.get(&id).map(|ps| StatusPayload {
-                id: id.clone(),
-                running: ps.running,
-                active_command: ps.active_command.clone(),
-                url: ps.detected_url.clone(),
-            })
-        })
-        .unwrap_or(StatusPayload {
-            id,
-            running: false,
-            active_command: None,
-            url: None,
-        })
-}
-
-#[tauri::command]
-pub fn get_all_status(state: State<'_, AppState>) -> HashMap<String, StatusPayload> {
+pub fn get_status(id: String, state: State<'_, AppState>) -> HashMap<String, CmdStatusPayload> {
+    let prefix = format!("{}::", id);
     state
         .processes
         .lock()
         .ok()
         .map(|map| {
             map.iter()
-                .map(|(id, ps)| {
+                .filter(|(k, _)| k.starts_with(&prefix))
+                .map(|(k, ps)| {
+                    let (_, label) = parse_key(k);
                     (
-                        id.clone(),
-                        StatusPayload {
-                            id: id.clone(),
+                        label.to_string(),
+                        CmdStatusPayload {
                             running: ps.running,
-                            active_command: ps.active_command.clone(),
                             url: ps.detected_url.clone(),
                         },
                     )
                 })
                 .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn get_all_status(state: State<'_, AppState>) -> HashMap<String, HashMap<String, CmdStatusPayload>> {
+    state
+        .processes
+        .lock()
+        .ok()
+        .map(|map| {
+            let mut result: HashMap<String, HashMap<String, CmdStatusPayload>> = HashMap::new();
+            for (key, ps) in map.iter() {
+                let (id, label) = parse_key(key);
+                result.entry(id.to_string())
+                    .or_default()
+                    .insert(label.to_string(), CmdStatusPayload {
+                        running: ps.running,
+                        url: ps.detected_url.clone(),
+                    });
+            }
+            result
         })
         .unwrap_or_default()
 }
