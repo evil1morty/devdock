@@ -63,12 +63,18 @@ export function openContextMenu(id, e) {
     ? '<span class="ctx-icon">&#128204;</span> Unpin'
     : '<span class="ctx-icon">&#128204;</span> Pin to Top';
 
-  // Position with padding from edges
-  const x = Math.min(e.clientX, window.innerWidth - 210);
-  const y = Math.min(e.clientY, window.innerHeight - 350);
+  // Position with padding from edges — measure actual menu height
+  $ctx.style.left = '-9999px';
+  $ctx.style.top = '0';
+  toggle($ctx, true);
+  const menuH = $ctx.offsetHeight;
+  const menuW = $ctx.offsetWidth;
+  const x = Math.min(e.clientX, window.innerWidth - menuW - 8);
+  const y = (e.clientY + menuH > window.innerHeight - 8)
+    ? Math.max(8, e.clientY - menuH)
+    : e.clientY;
   $ctx.style.left = x + 'px';
   $ctx.style.top = y + 'px';
-  toggle($ctx, true);
 }
 
 export function closeContextMenu() {
