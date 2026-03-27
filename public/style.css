@@ -286,6 +286,54 @@ body {
 }
 .settings-about a:hover { text-decoration: underline; }
 
+/* ── Tag bar ───────────────────────────────────── */
+#tag-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.tag-chip {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--sans);
+  background: var(--bg4);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.tag-chip:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.tag-chip.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.tag-clear {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: var(--sans);
+  background: none;
+  color: var(--text3);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: color .15s;
+}
+.tag-clear:hover { color: var(--red); }
+
 /* ── Dashboard ──────────────────────────────────── */
 #dashboard {
   flex: 1;
@@ -734,6 +782,57 @@ body {
   transition: border .15s;
 }
 #dialog input:focus { border-color: var(--accent); }
+
+/* Tag input in dialog */
+#tag-input-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 5px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border .15s;
+  min-height: 34px;
+}
+#tag-input-wrap:focus-within { border-color: var(--accent); }
+
+#inp-tag {
+  flex: 1;
+  min-width: 80px;
+  border: none !important;
+  background: transparent !important;
+  padding: 2px 0 !important;
+  margin: 0 !important;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--text);
+  outline: none;
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--sans);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.tag-pill-rm {
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  opacity: .7;
+  transition: opacity .1s;
+}
+.tag-pill-rm:hover { opacity: 1; }
 
 .input-row {
   display: flex;

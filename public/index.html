@@ -28,6 +28,9 @@
       </div>
     </header>
 
+    <!-- Tag filter bar (shown when tags exist) -->
+    <div id="tag-bar" class="hidden"></div>
+
     <!-- Dashboard table -->
     <div id="dashboard">
       <table id="project-table">
@@ -122,6 +125,13 @@
 
       <label>Name
         <input type="text" id="inp-name" placeholder="my-app" autocomplete="off" />
+      </label>
+
+      <label>Tags
+        <div id="tag-input-wrap">
+          <div id="tag-pills"></div>
+          <input type="text" id="inp-tag" placeholder="Add tag..." autocomplete="off" />
+        </div>
       </label>
 
       <div id="cmd-list-header">

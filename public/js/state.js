@@ -6,6 +6,7 @@ export const state = {
   activeLogTab: null,  // which command tab is selected
   ctxProjectId: null,  // context menu target
   editingId: null,     // dialog: null = add, string = edit
+  activeTag: null,     // tag filter: null = show all
   settings: {
     claude_command: 'claude',
     claude_mode: 'tab',

@@ -9,6 +9,10 @@ const $inpName  = $('inp-name');
 const $inpDir   = $('inp-dir');
 const $cmdList  = $('cmd-list');
 const $envList  = $('env-list');
+const $tagPills = $('tag-pills');
+const $inpTag   = $('inp-tag');
+
+let dialogTags = [];  // tags for the current dialog session
 
 // ── Open / Close ───────────────────────────────────
 
@@ -19,6 +23,10 @@ export function openDialog(id) {
   $dlgTitle.textContent = proj ? 'Edit Project' : 'Add Project';
   $inpName.value = proj ? proj.name : '';
   $inpDir.value = proj ? proj.directory : '';
+
+  dialogTags = proj && proj.tags ? [...proj.tags] : [];
+  $inpTag.value = '';
+  renderTagPills();
 
   $cmdList.innerHTML = '';
   if (proj) proj.commands.forEach(c => addCmdRow(c.label, c.cmd));
@@ -34,6 +42,40 @@ export function closeDialog() {
   $overlay.classList.add('hidden');
   state.editingId = null;
 }
+
+// ── Tag pills ─────────────────────────────────────
+
+function renderTagPills() {
+  $tagPills.innerHTML = '';
+  dialogTags.forEach(tag => {
+    const pill = el('span', 'tag-pill');
+    pill.appendChild(document.createTextNode(tag));
+    const rm = el('span', 'tag-pill-rm', '\u00d7');
+    rm.addEventListener('click', () => {
+      dialogTags = dialogTags.filter(t => t !== tag);
+      renderTagPills();
+    });
+    pill.appendChild(rm);
+    $tagPills.appendChild(pill);
+  });
+}
+
+function addTagFromInput() {
+  const tag = $inpTag.value.trim().toLowerCase();
+  if (tag && !dialogTags.includes(tag)) {
+    dialogTags.push(tag);
+    renderTagPills();
+  }
+  $inpTag.value = '';
+}
+
+$inpTag.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addTagFromInput(); }
+  if (e.key === 'Backspace' && !$inpTag.value && dialogTags.length) {
+    dialogTags.pop();
+    renderTagPills();
+  }
+});
 
 // ── Helpers ────────────────────────────────────────
 
@@ -214,11 +256,12 @@ $('btn-save').addEventListener('click', async () => {
     framework = scan.framework;
   } catch (_) {}
 
+  const tags = [...dialogTags];
   if (state.editingId) {
     const proj = state.projects.find(p => p.id === state.editingId);
-    if (proj) Object.assign(proj, { name, directory: dir, commands, env, framework });
+    if (proj) Object.assign(proj, { name, directory: dir, commands, env, framework, tags });
   } else {
-    state.projects.push({ id: crypto.randomUUID(), name, directory: dir, framework, commands, env, pinned: false });
+    state.projects.push({ id: crypto.randomUUID(), name, directory: dir, framework, commands, env, tags, pinned: false });
   }
 
   await api.saveConfig(state.projects);

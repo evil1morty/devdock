@@ -8,10 +8,13 @@ const $list   = $('project-list');
 const $empty  = $('empty');
 const $table  = $('project-table');
 const $search = $('search');
+const $tagBar = $('tag-bar');
 
 // ── Render ─────────────────────────────────────────
 
 export function render() {
+  renderTagBar();
+
   if (state.projects.length === 0) {
     toggle($table, false);
     toggle($empty, true);
@@ -22,11 +25,43 @@ export function render() {
   $list.innerHTML = '';
 
   const filter = $search.value.toLowerCase().trim();
+  const tag = state.activeTag;
   const sorted = [...state.projects].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
   sorted.forEach(p => {
-    if (filter && !p.name.toLowerCase().includes(filter) && !(p.framework || '').toLowerCase().includes(filter)) return;
+    if (filter && !p.name.toLowerCase().includes(filter) && !(p.framework || '').toLowerCase().includes(filter)
+        && !(p.tags || []).some(t => t.toLowerCase().includes(filter))) return;
+    if (tag && !(p.tags || []).includes(tag)) return;
     $list.appendChild(createRow(p));
   });
+}
+
+function renderTagBar() {
+  const allTags = [...new Set(state.projects.flatMap(p => p.tags || []))].sort();
+  if (allTags.length === 0) {
+    toggle($tagBar, false);
+    state.activeTag = null;
+    return;
+  }
+  toggle($tagBar, true);
+  $tagBar.innerHTML = '';
+
+  allTags.forEach(tag => {
+    const chip = el('button', 'tag-chip' + (state.activeTag === tag ? ' active' : ''), tag);
+    chip.addEventListener('click', () => {
+      state.activeTag = state.activeTag === tag ? null : tag;
+      render();
+    });
+    $tagBar.appendChild(chip);
+  });
+
+  if (state.activeTag) {
+    const clear = el('button', 'tag-clear', '\u00d7 Clear');
+    clear.addEventListener('click', () => {
+      state.activeTag = null;
+      render();
+    });
+    $tagBar.appendChild(clear);
+  }
 }
 
 function createRow(p) {
