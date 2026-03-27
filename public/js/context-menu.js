@@ -38,7 +38,6 @@ export function openContextMenu(id, e) {
 
   toggle($('div-cmds'), showCmds);
   toggle($ctx.querySelector('[data-action="stop"]'), s.running);
-  toggle($ctx.querySelector('[data-action="restart"]'), false); // removed — use per-command restart
   toggle($('div-process'), s.running);
   $ctx.querySelector('[data-action="browser"]').disabled = !s.url;
 
@@ -100,18 +99,6 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
     switch (action) {
       case 'stop':
         api.stopAll(id);
-        break;
-      case 'restart':
-        // Restart all currently running commands
-        if (proj) {
-          const cmds = s.commands || {};
-          Object.entries(cmds).forEach(([label, cs]) => {
-            if (cs.running) {
-              const cmd = proj.commands.find(c => c.label === label);
-              if (cmd) runCommand(id, cmd.label, cmd.cmd, proj.directory, proj.env);
-            }
-          });
-        }
         break;
       case 'browser':
         if (s.url) api.openInBrowser(s.url);

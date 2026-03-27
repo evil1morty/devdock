@@ -47,6 +47,7 @@ export function closeDialog() {
 
 function renderTagPills() {
   $tagPills.innerHTML = '';
+  $tagPills.style.display = dialogTags.length ? '' : 'none';
   dialogTags.forEach(tag => {
     const pill = el('span', 'tag-pill');
     pill.appendChild(document.createTextNode(tag));

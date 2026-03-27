@@ -71,6 +71,8 @@ pub struct ProjectConfig {
     #[serde(default)]
     pub env: Vec<EnvVar>,
     #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
     pub pinned: bool,
 }
 

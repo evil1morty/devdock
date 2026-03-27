@@ -37,9 +37,11 @@ export function render() {
 
 function renderTagBar() {
   const allTags = [...new Set(state.projects.flatMap(p => p.tags || []))].sort();
+  if (state.activeTag && !allTags.includes(state.activeTag)) {
+    state.activeTag = null;
+  }
   if (allTags.length === 0) {
     toggle($tagBar, false);
-    state.activeTag = null;
     return;
   }
   toggle($tagBar, true);
