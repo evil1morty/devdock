@@ -16,6 +16,13 @@ async function init() {
 
   applyTheme(state.settings.theme);
 
+  // Show version in settings
+  try {
+    const ver = await window.__TAURI__.app.getVersion();
+    const el = document.getElementById('app-version');
+    if (el) el.textContent = `OneRun v${ver}`;
+  } catch (_) {}
+
   // Apply saved window size
   try {
     const win = window.__TAURI__.window.getCurrentWindow();
