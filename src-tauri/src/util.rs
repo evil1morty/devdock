@@ -16,15 +16,47 @@ pub fn strip_ansi(s: &str) -> String {
     out
 }
 
-/// Try to extract a localhost URL from a log line.
+/// Try to extract the primary localhost URL from a dev-server log line.
+///
+/// Two-layer filtering based on how real dev servers print URLs:
+///
+///  Layer 1 – Line-level skip: reject entire lines that carry a non-primary
+///  label (Vite "Debug:", Vite/Next "Network:", CRA "On Your Network:", etc.).
+///
+///  Layer 2 – Path-level skip: reject URLs whose path begins with `/__`
+///  (Vite `/__debug`, Gatsby `/__graphql`, Vite `/__inspect`, etc.).
+///
+/// What passes through: the "Local:" line from Vite/Next/Nuxt/Astro/CRA,
+/// bare URLs from Gatsby/Hugo, and "listening/running/available at" lines
+/// from Express/Django/Flask/Rails/Laravel/Fastify/Elysia.
 pub fn detect_url(line: &str) -> Option<String> {
-    const PATTERNS: &[&str] = &[
+    // ── Layer 1: skip lines that label a non-primary URL ──────────
+    const SKIP_LINE: &[&str] = &[
+        "Network:",        // Vite, Next.js, Nuxt, Astro, SvelteKit
+        "On Your Network", // CRA / webpack-dev-server
+        "Debug:",          // Vite debug panel
+        "Inspect:",        // Vite inspect plugin
+        "GraphiQL",        // Gatsby GraphiQL explorer
+        "graphql",         // Gatsby ___graphql URL line
+        "Debugger listening", // Node --inspect
+        "Remote:",         // Some HMR/debug tools
+    ];
+
+    for skip in SKIP_LINE {
+        if line.contains(skip) {
+            return None;
+        }
+    }
+
+    // ── Extract a localhost URL ───────────────────────────────────
+    const HOST_PATTERNS: &[&str] = &[
         "http://localhost:",
         "http://127.0.0.1:",
         "http://0.0.0.0:",
         "https://localhost:",
     ];
-    for pat in PATTERNS {
+
+    for pat in HOST_PATTERNS {
         if let Some(pos) = line.find(pat) {
             let rest = &line[pos..];
             let end = rest
@@ -40,17 +72,20 @@ pub fn detect_url(line: &str) -> Option<String> {
                 })
                 .unwrap_or(rest.len());
             let url = rest[..end].trim_end_matches('/');
-            if url.len() > pat.len() {
-                // Skip debug/internal URLs
-                if let Some(path_start) = url[pat.len()..].find('/') {
-                    let path_start = path_start + pat.len();
-                    let path = &url[path_start..];
-                    if path.starts_with("/__") {
-                        continue;
-                    }
-                }
-                return Some(url.to_string());
+            if url.len() <= pat.len() {
+                continue;
             }
+
+            // ── Layer 2: skip URLs with internal/debug paths ─────
+            // Catches /__debug, /___graphql, /__inspect, etc.
+            if let Some(slash) = url[pat.len()..].find('/') {
+                let path = &url[pat.len() + slash..];
+                if path.starts_with("/__") {
+                    continue;
+                }
+            }
+
+            return Some(url.to_string());
         }
     }
     None
@@ -94,4 +129,157 @@ pub fn detect_framework(pkg: &serde_json::Value) -> Option<String> {
         .iter()
         .find(|(check, _)| check())
         .map(|(_, name)| (*name).into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Should detect (primary URLs) ─────────────────────────────
+
+    #[test]
+    fn vite_local() {
+        let line = "  ➜  Local:   http://localhost:5173/";
+        assert_eq!(detect_url(line), Some("http://localhost:5173".into()));
+    }
+
+    #[test]
+    fn vinext_local() {
+        let line = "  ➜  Local:   http://localhost:3000/";
+        assert_eq!(detect_url(line), Some("http://localhost:3000".into()));
+    }
+
+    #[test]
+    fn nextjs_local() {
+        let line = "  - Local:        http://localhost:3000";
+        assert_eq!(detect_url(line), Some("http://localhost:3000".into()));
+    }
+
+    #[test]
+    fn cra_local() {
+        let line = "  Local:            http://localhost:3000";
+        assert_eq!(detect_url(line), Some("http://localhost:3000".into()));
+    }
+
+    #[test]
+    fn angular_cli() {
+        let line = "** Angular Live Development Server is listening on localhost:4200, open your browser on http://localhost:4200/ **";
+        assert_eq!(detect_url(line), Some("http://localhost:4200".into()));
+    }
+
+    #[test]
+    fn gatsby_main() {
+        let line = "  http://localhost:8000/";
+        assert_eq!(detect_url(line), Some("http://localhost:8000".into()));
+    }
+
+    #[test]
+    fn django() {
+        let line = "Starting development server at http://127.0.0.1:8000/";
+        assert_eq!(detect_url(line), Some("http://127.0.0.1:8000".into()));
+    }
+
+    #[test]
+    fn flask() {
+        let line = " * Running on http://127.0.0.1:5000";
+        assert_eq!(detect_url(line), Some("http://127.0.0.1:5000".into()));
+    }
+
+    #[test]
+    fn rails() {
+        let line = "* Listening on http://127.0.0.1:3000";
+        assert_eq!(detect_url(line), Some("http://127.0.0.1:3000".into()));
+    }
+
+    #[test]
+    fn laravel() {
+        let line = "Starting Laravel development server: http://127.0.0.1:8000";
+        assert_eq!(detect_url(line), Some("http://127.0.0.1:8000".into()));
+    }
+
+    #[test]
+    fn hugo() {
+        let line = "Web Server is available at http://localhost:1313/";
+        assert_eq!(detect_url(line), Some("http://localhost:1313".into()));
+    }
+
+    #[test]
+    fn elysia() {
+        let line = "🦊 Elysia is running at http://localhost:3000";
+        assert_eq!(detect_url(line), Some("http://localhost:3000".into()));
+    }
+
+    #[test]
+    fn fastify() {
+        let line = "Server listening at http://127.0.0.1:3000";
+        assert_eq!(detect_url(line), Some("http://127.0.0.1:3000".into()));
+    }
+
+    #[test]
+    fn express_0000() {
+        let line = "Listening on http://0.0.0.0:4000";
+        assert_eq!(detect_url(line), Some("http://0.0.0.0:4000".into()));
+    }
+
+    #[test]
+    fn astro_local() {
+        let line = "  ┃ Local    http://localhost:4321/";
+        assert_eq!(detect_url(line), Some("http://localhost:4321".into()));
+    }
+
+    // ── Should reject (non-primary URLs) ─────────────────────────
+
+    #[test]
+    fn vite_debug() {
+        let line = "  ➜  Debug:   http://localhost:5173/__debug";
+        assert_eq!(detect_url(line), None);
+    }
+
+    #[test]
+    fn vinext_debug() {
+        let line = "  ➜  Debug:   http://localhost:3000/__debug";
+        assert_eq!(detect_url(line), None);
+    }
+
+    #[test]
+    fn vite_network() {
+        let line = "  ➜  Network: http://192.168.1.5:5173/";
+        assert_eq!(detect_url(line), None); // no localhost pattern match
+    }
+
+    #[test]
+    fn nextjs_network() {
+        let line = "  - Network:      http://192.168.1.5:3000";
+        assert_eq!(detect_url(line), None);
+    }
+
+    #[test]
+    fn cra_network() {
+        let line = "  On Your Network:  http://192.168.1.5:3000";
+        assert_eq!(detect_url(line), None);
+    }
+
+    #[test]
+    fn gatsby_graphiql() {
+        let line = "  http://localhost:8000/___graphql";
+        assert_eq!(detect_url(line), None);
+    }
+
+    #[test]
+    fn vite_inspect() {
+        let line = "  Inspect:  http://localhost:5173/__inspect";
+        assert_eq!(detect_url(line), None);
+    }
+
+    #[test]
+    fn node_debugger() {
+        let line = "Debugger listening on ws://127.0.0.1:9229/abc-123";
+        assert_eq!(detect_url(line), None); // ws:// not http://
+    }
+
+    #[test]
+    fn generic_internal_path() {
+        let line = "  http://localhost:3000/__hmr";
+        assert_eq!(detect_url(line), None);
+    }
 }
