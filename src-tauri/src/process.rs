@@ -176,12 +176,18 @@ fn spawn_reader(
             let clean = strip_ansi(&line);
 
             if detect_urls {
-                if let Some(url) = detect_url(&clean) {
+                if let Some((url, confidence)) = detect_url(&clean) {
                     if let Ok(mut map) = procs.lock() {
                         if let Some(ps) = map.get_mut(&id) {
-                            let changed = ps.detected_url.as_ref() != Some(&url);
-                            if changed {
+                            // Only overwrite if new confidence >= stored confidence.
+                            // This prevents a backend "Server listening on :3001"
+                            // from replacing a frontend "Local: http://localhost:5173".
+                            let dominated = ps.detected_url.is_some()
+                                && confidence < ps.url_confidence;
+                            let unchanged = ps.detected_url.as_ref() == Some(&url);
+                            if !dominated && !unchanged {
                                 ps.detected_url = Some(url.clone());
+                                ps.url_confidence = confidence;
                                 let _ = app.emit(
                                     "process-status",
                                     StatusPayload {
@@ -235,6 +241,7 @@ pub fn start(
         ps.running = true;
         ps.active_command = Some(label.clone());
         ps.detected_url = None;
+        ps.url_confidence = crate::util::UrlConfidence::Normal;
     }
 
     // Spawn

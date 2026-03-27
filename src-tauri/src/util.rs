@@ -16,9 +16,25 @@ pub fn strip_ansi(s: &str) -> String {
     out
 }
 
+/// How confident we are that a detected URL is the primary browseable one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum UrlConfidence {
+    /// Generic "listening on" / bare URL — could be a backend API server.
+    Normal = 0,
+    /// Explicit frontend label (Vite "Local:", Angular "open your browser", etc.)
+    /// — almost certainly the URL you want to open in a browser.
+    High = 1,
+}
+
+impl Default for UrlConfidence {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
+
 /// Try to extract the primary localhost URL from a dev-server log line.
 ///
-/// Two-layer filtering based on how real dev servers print URLs:
+/// Three-layer filtering based on how real dev servers print URLs:
 ///
 ///  Layer 1 – Line-level skip: reject entire lines that carry a non-primary
 ///  label (Vite "Debug:", Vite/Next "Network:", CRA "On Your Network:", etc.).
@@ -26,10 +42,11 @@ pub fn strip_ansi(s: &str) -> String {
 ///  Layer 2 – Path-level skip: reject URLs whose path begins with `/__`
 ///  (Vite `/__debug`, Gatsby `/__graphql`, Vite `/__inspect`, etc.).
 ///
-/// What passes through: the "Local:" line from Vite/Next/Nuxt/Astro/CRA,
-/// bare URLs from Gatsby/Hugo, and "listening/running/available at" lines
-/// from Express/Django/Flask/Rails/Laravel/Fastify/Elysia.
-pub fn detect_url(line: &str) -> Option<String> {
+///  Layer 3 – Confidence: lines with a known frontend label ("Local:",
+///  "available at", "open your browser") get `High` confidence; everything
+///  else gets `Normal`. The caller uses this to avoid letting a backend API
+///  URL overwrite a frontend dev-server URL in `concurrently`-style setups.
+pub fn detect_url(line: &str) -> Option<(String, UrlConfidence)> {
     // ── Layer 1: skip lines that label a non-primary URL ──────────
     const SKIP_LINE: &[&str] = &[
         "Network:",        // Vite, Next.js, Nuxt, Astro, SvelteKit
@@ -85,7 +102,23 @@ pub fn detect_url(line: &str) -> Option<String> {
                 }
             }
 
-            return Some(url.to_string());
+            // ── Layer 3: determine confidence ────────────────────
+            // Known frontend dev-server labels → High confidence.
+            // These appear in: Vite, Next.js, Nuxt, SvelteKit, Astro,
+            // CRA ("Local:"), Hugo ("available at"), Angular ("open your browser").
+            const HIGH_SIGNALS: &[&str] = &[
+                "Local",           // Vite, Next, Nuxt, SvelteKit, Astro, CRA
+                "available at",    // Hugo
+                "open your browser", // Angular CLI
+            ];
+
+            let confidence = if HIGH_SIGNALS.iter().any(|s| line.contains(s)) {
+                UrlConfidence::High
+            } else {
+                UrlConfidence::Normal
+            };
+
+            return Some((url.to_string(), confidence));
         }
     }
     None
@@ -135,151 +168,257 @@ pub fn detect_framework(pkg: &serde_json::Value) -> Option<String> {
 mod tests {
     use super::*;
 
-    // ── Should detect (primary URLs) ─────────────────────────────
+    /// Helper: extract just the URL string from detect_url.
+    fn url(line: &str) -> Option<String> {
+        detect_url(line).map(|(u, _)| u)
+    }
+
+    /// Helper: extract just the confidence from detect_url.
+    fn conf(line: &str) -> Option<UrlConfidence> {
+        detect_url(line).map(|(_, c)| c)
+    }
+
+    // ── Should detect: HIGH confidence (frontend labels) ─────────
 
     #[test]
     fn vite_local() {
         let line = "  ➜  Local:   http://localhost:5173/";
-        assert_eq!(detect_url(line), Some("http://localhost:5173".into()));
+        assert_eq!(url(line), Some("http://localhost:5173".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::High));
     }
 
     #[test]
     fn vinext_local() {
         let line = "  ➜  Local:   http://localhost:3000/";
-        assert_eq!(detect_url(line), Some("http://localhost:3000".into()));
+        assert_eq!(url(line), Some("http://localhost:3000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::High));
     }
 
     #[test]
     fn nextjs_local() {
         let line = "  - Local:        http://localhost:3000";
-        assert_eq!(detect_url(line), Some("http://localhost:3000".into()));
+        assert_eq!(url(line), Some("http://localhost:3000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::High));
     }
 
     #[test]
     fn cra_local() {
         let line = "  Local:            http://localhost:3000";
-        assert_eq!(detect_url(line), Some("http://localhost:3000".into()));
+        assert_eq!(url(line), Some("http://localhost:3000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::High));
     }
 
     #[test]
     fn angular_cli() {
         let line = "** Angular Live Development Server is listening on localhost:4200, open your browser on http://localhost:4200/ **";
-        assert_eq!(detect_url(line), Some("http://localhost:4200".into()));
-    }
-
-    #[test]
-    fn gatsby_main() {
-        let line = "  http://localhost:8000/";
-        assert_eq!(detect_url(line), Some("http://localhost:8000".into()));
-    }
-
-    #[test]
-    fn django() {
-        let line = "Starting development server at http://127.0.0.1:8000/";
-        assert_eq!(detect_url(line), Some("http://127.0.0.1:8000".into()));
-    }
-
-    #[test]
-    fn flask() {
-        let line = " * Running on http://127.0.0.1:5000";
-        assert_eq!(detect_url(line), Some("http://127.0.0.1:5000".into()));
-    }
-
-    #[test]
-    fn rails() {
-        let line = "* Listening on http://127.0.0.1:3000";
-        assert_eq!(detect_url(line), Some("http://127.0.0.1:3000".into()));
-    }
-
-    #[test]
-    fn laravel() {
-        let line = "Starting Laravel development server: http://127.0.0.1:8000";
-        assert_eq!(detect_url(line), Some("http://127.0.0.1:8000".into()));
+        assert_eq!(url(line), Some("http://localhost:4200".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::High));
     }
 
     #[test]
     fn hugo() {
         let line = "Web Server is available at http://localhost:1313/";
-        assert_eq!(detect_url(line), Some("http://localhost:1313".into()));
-    }
-
-    #[test]
-    fn elysia() {
-        let line = "🦊 Elysia is running at http://localhost:3000";
-        assert_eq!(detect_url(line), Some("http://localhost:3000".into()));
-    }
-
-    #[test]
-    fn fastify() {
-        let line = "Server listening at http://127.0.0.1:3000";
-        assert_eq!(detect_url(line), Some("http://127.0.0.1:3000".into()));
-    }
-
-    #[test]
-    fn express_0000() {
-        let line = "Listening on http://0.0.0.0:4000";
-        assert_eq!(detect_url(line), Some("http://0.0.0.0:4000".into()));
+        assert_eq!(url(line), Some("http://localhost:1313".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::High));
     }
 
     #[test]
     fn astro_local() {
         let line = "  ┃ Local    http://localhost:4321/";
-        assert_eq!(detect_url(line), Some("http://localhost:4321".into()));
+        assert_eq!(url(line), Some("http://localhost:4321".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::High));
+    }
+
+    #[test]
+    fn concurrently_ui_local() {
+        let line = "[ui]   ➜  Local:   http://localhost:5173/";
+        assert_eq!(url(line), Some("http://localhost:5173".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::High));
+    }
+
+    // ── Should detect: NORMAL confidence (backend / generic) ─────
+
+    #[test]
+    fn gatsby_main() {
+        let line = "  http://localhost:8000/";
+        assert_eq!(url(line), Some("http://localhost:8000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::Normal));
+    }
+
+    #[test]
+    fn django() {
+        let line = "Starting development server at http://127.0.0.1:8000/";
+        assert_eq!(url(line), Some("http://127.0.0.1:8000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::Normal));
+    }
+
+    #[test]
+    fn flask() {
+        let line = " * Running on http://127.0.0.1:5000";
+        assert_eq!(url(line), Some("http://127.0.0.1:5000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::Normal));
+    }
+
+    #[test]
+    fn rails() {
+        let line = "* Listening on http://127.0.0.1:3000";
+        assert_eq!(url(line), Some("http://127.0.0.1:3000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::Normal));
+    }
+
+    #[test]
+    fn laravel() {
+        let line = "Starting Laravel development server: http://127.0.0.1:8000";
+        assert_eq!(url(line), Some("http://127.0.0.1:8000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::Normal));
+    }
+
+    #[test]
+    fn elysia() {
+        let line = "🦊 Elysia is running at http://localhost:3000";
+        assert_eq!(url(line), Some("http://localhost:3000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::Normal));
+    }
+
+    #[test]
+    fn fastify() {
+        let line = "Server listening at http://127.0.0.1:3000";
+        assert_eq!(url(line), Some("http://127.0.0.1:3000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::Normal));
+    }
+
+    #[test]
+    fn express_0000() {
+        let line = "Listening on http://0.0.0.0:4000";
+        assert_eq!(url(line), Some("http://0.0.0.0:4000".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::Normal));
+    }
+
+    #[test]
+    fn concurrently_server() {
+        let line = "[server] Server listening on http://localhost:3001";
+        assert_eq!(url(line), Some("http://localhost:3001".into()));
+        assert_eq!(conf(line), Some(UrlConfidence::Normal));
     }
 
     // ── Should reject (non-primary URLs) ─────────────────────────
 
     #[test]
     fn vite_debug() {
-        let line = "  ➜  Debug:   http://localhost:5173/__debug";
-        assert_eq!(detect_url(line), None);
+        assert_eq!(detect_url("  ➜  Debug:   http://localhost:5173/__debug"), None);
     }
 
     #[test]
     fn vinext_debug() {
-        let line = "  ➜  Debug:   http://localhost:3000/__debug";
-        assert_eq!(detect_url(line), None);
+        assert_eq!(detect_url("  ➜  Debug:   http://localhost:3000/__debug"), None);
     }
 
     #[test]
     fn vite_network() {
-        let line = "  ➜  Network: http://192.168.1.5:5173/";
-        assert_eq!(detect_url(line), None); // no localhost pattern match
+        assert_eq!(detect_url("  ➜  Network: http://192.168.1.5:5173/"), None);
     }
 
     #[test]
     fn nextjs_network() {
-        let line = "  - Network:      http://192.168.1.5:3000";
-        assert_eq!(detect_url(line), None);
+        assert_eq!(detect_url("  - Network:      http://192.168.1.5:3000"), None);
     }
 
     #[test]
     fn cra_network() {
-        let line = "  On Your Network:  http://192.168.1.5:3000";
-        assert_eq!(detect_url(line), None);
+        assert_eq!(detect_url("  On Your Network:  http://192.168.1.5:3000"), None);
     }
 
     #[test]
     fn gatsby_graphiql() {
-        let line = "  http://localhost:8000/___graphql";
-        assert_eq!(detect_url(line), None);
+        assert_eq!(detect_url("  http://localhost:8000/___graphql"), None);
     }
 
     #[test]
     fn vite_inspect() {
-        let line = "  Inspect:  http://localhost:5173/__inspect";
-        assert_eq!(detect_url(line), None);
+        assert_eq!(detect_url("  Inspect:  http://localhost:5173/__inspect"), None);
     }
 
     #[test]
     fn node_debugger() {
-        let line = "Debugger listening on ws://127.0.0.1:9229/abc-123";
-        assert_eq!(detect_url(line), None); // ws:// not http://
+        assert_eq!(detect_url("Debugger listening on ws://127.0.0.1:9229/abc-123"), None);
     }
 
     #[test]
     fn generic_internal_path() {
-        let line = "  http://localhost:3000/__hmr";
-        assert_eq!(detect_url(line), None);
+        assert_eq!(detect_url("  http://localhost:3000/__hmr"), None);
+    }
+
+    // ── Confidence ordering: High > Normal ───────────────────────
+
+    #[test]
+    fn confidence_ordering() {
+        assert!(UrlConfidence::High > UrlConfidence::Normal);
+    }
+
+    // ── Concurrently scenario: server + UI ───────────────────────
+
+    #[test]
+    fn concurrently_full_scenario() {
+        // Simulates the overwrite logic in spawn_reader:
+        // first the backend URL arrives (Normal), then the frontend (High).
+        // After that, more backend output should NOT replace the frontend URL.
+        let lines = [
+            "[server] Server listening on http://localhost:3001",
+            "[server] WebSocket available at ws://localhost:3001",
+            "[ui]   ➜  Local:   http://localhost:5173/",
+            "[ui]   ➜  Network: use --host to expose",
+        ];
+
+        let mut stored_url: Option<String> = None;
+        let mut stored_conf = UrlConfidence::Normal;
+
+        for line in &lines {
+            if let Some((u, c)) = detect_url(line) {
+                let dominated = stored_url.is_some() && c < stored_conf;
+                let unchanged = stored_url.as_ref() == Some(&u);
+                if !dominated && !unchanged {
+                    stored_url = Some(u);
+                    stored_conf = c;
+                }
+            }
+        }
+
+        // The UI's Local URL wins and sticks.
+        assert_eq!(stored_url, Some("http://localhost:5173".into()));
+        assert_eq!(stored_conf, UrlConfidence::High);
+    }
+
+    #[test]
+    fn concurrently_reverse_order() {
+        // Even if the UI prints first and the server prints second,
+        // the High-confidence UI URL must not be overwritten.
+        let lines = [
+            "[ui]   ➜  Local:   http://localhost:5173/",
+            "[server] Server listening on http://localhost:3001",
+        ];
+
+        let mut stored_url: Option<String> = None;
+        let mut stored_conf = UrlConfidence::Normal;
+
+        for line in &lines {
+            if let Some((u, c)) = detect_url(line) {
+                let dominated = stored_url.is_some() && c < stored_conf;
+                let unchanged = stored_url.as_ref() == Some(&u);
+                if !dominated && !unchanged {
+                    stored_url = Some(u);
+                    stored_conf = c;
+                }
+            }
+        }
+
+        assert_eq!(stored_url, Some("http://localhost:5173".into()));
+        assert_eq!(stored_conf, UrlConfidence::High);
+    }
+
+    #[test]
+    fn solo_backend_still_detected() {
+        // When there's only a backend (no frontend), Normal URL should work fine.
+        let line = "Server listening on http://localhost:3001";
+        assert_eq!(url(line), Some("http://localhost:3001".into()));
     }
 }

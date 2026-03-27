@@ -3,6 +3,8 @@ use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use crate::util::UrlConfidence;
+
 // ── Runtime state ──────────────────────────────────
 
 #[derive(Default)]
@@ -12,6 +14,7 @@ pub struct ProcessState {
     pub active_command: Option<String>,
     pub logs: VecDeque<LogLine>,
     pub detected_url: Option<String>,
+    pub url_confidence: UrlConfidence,
 }
 
 pub struct AppState {
