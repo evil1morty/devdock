@@ -301,7 +301,8 @@ pub fn start(
             if let Some(ps) = map.get_mut(&id_c) {
                 ps.running = false;
                 ps.pid = None;
-                url = ps.detected_url.clone();
+                ps.detected_url = None;
+                url = None;
                 ps.active_command = None;
             } else {
                 url = None;

@@ -41,6 +41,14 @@ pub fn detect_url(line: &str) -> Option<String> {
                 .unwrap_or(rest.len());
             let url = rest[..end].trim_end_matches('/');
             if url.len() > pat.len() {
+                // Skip debug/internal URLs
+                if let Some(path_start) = url[pat.len()..].find('/') {
+                    let path_start = path_start + pat.len();
+                    let path = &url[path_start..];
+                    if path.starts_with("/__") {
+                        continue;
+                    }
+                }
                 return Some(url.to_string());
             }
         }
