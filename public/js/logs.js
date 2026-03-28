@@ -141,6 +141,13 @@ $('log-copy').addEventListener('click', () => {
   const lines = $logOut.querySelectorAll('.log-line');
   const text = Array.from(lines).map(l => l.textContent).join('\n');
   navigator.clipboard.writeText(text);
+  const copyBtn = $('log-copy');
+  copyBtn.textContent = 'Copied!';
+  copyBtn.classList.add('copied');
+  setTimeout(() => {
+    copyBtn.textContent = 'Copy';
+    copyBtn.classList.remove('copied');
+  }, 1500);
 });
 $('log-clear').addEventListener('click', () => { $logOut.innerHTML = ''; });
 $('log-close').addEventListener('click', closeLogPanel);

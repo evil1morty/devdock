@@ -385,10 +385,10 @@ body {
 .project-row.pinned { background: var(--bg2); }
 .pin-icon { font-size: 11px; color: var(--text3); margin-left: 4px; }
 .project-row.missing {
-  background: color-mix(in srgb, var(--red) 8%, transparent);
+  background: color-mix(in srgb, var(--orange) 6%, transparent);
 }
 .project-row.missing:hover {
-  background: color-mix(in srgb, var(--red) 14%, transparent);
+  background: color-mix(in srgb, var(--orange) 10%, transparent);
 }
 .project-row.flash-red {
   animation: flashRed .8s ease;
@@ -440,6 +440,15 @@ body {
   border-radius: 3px;
   background: var(--bg4);
   color: var(--text2);
+  white-space: nowrap;
+}
+.row-tag {
+  font-size: 9px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
   white-space: nowrap;
 }
 
@@ -521,18 +530,18 @@ body {
   font-size: 11px;
   font-weight: 600;
   font-family: var(--sans);
-  background: color-mix(in srgb, var(--red) 12%, transparent);
-  color: var(--red);
-  border: 1px solid color-mix(in srgb, var(--red) 30%, transparent);
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+  color: var(--orange);
+  border: 1px solid color-mix(in srgb, var(--orange) 30%, transparent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all .15s;
   white-space: nowrap;
 }
 .relocate-btn:hover {
-  background: var(--red);
+  background: var(--orange);
   color: #fff;
-  border-color: var(--red);
+  border-color: var(--orange);
 }
 
 .input-error { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }
@@ -642,6 +651,7 @@ body {
   transition: all .12s;
 }
 .log-actions button:hover { background: var(--bg4); color: var(--text); }
+.log-actions button.copied { background: var(--green); color: #fff; border-color: var(--green); }
 
 /* Command tabs in log panel */
 #log-tabs {
@@ -738,6 +748,8 @@ body {
   white-space: pre-wrap;
   word-break: break-all;
   min-height: 0;
+  user-select: text;
+  cursor: text;
 }
 
 #log-output::-webkit-scrollbar { width: 6px; }

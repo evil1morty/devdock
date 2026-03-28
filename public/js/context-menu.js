@@ -86,7 +86,7 @@ export function closeContextMenu() {
 document.addEventListener('click', closeContextMenu);
 
 $ctx.querySelectorAll('.ctx-item').forEach(b => {
-  b.addEventListener('click', e => {
+  b.addEventListener('click', async e => {
     e.stopPropagation();
     const action = b.dataset.action;
     if (!state.ctxProjectId) return;
@@ -118,6 +118,17 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
         break;
       case 'explorer':
         if (proj) api.openInExplorer(proj.directory);
+        break;
+      case 'rescan':
+        if (proj) {
+          try {
+            const scan = await api.scanProject(proj.directory);
+            if (scan.commands.length > 0) proj.commands = scan.commands;
+            if (scan.framework) proj.framework = scan.framework;
+            await api.saveConfig(state.projects);
+            render();
+          } catch (_) {}
+        }
         break;
       case 'edit':
         openDialog(id);

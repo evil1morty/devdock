@@ -1,4 +1,4 @@
-import { state, getStatus, getCmdStatus } from './state.js';
+import { state, getStatus, getCmdStatus, checkProjectPaths } from './state.js';
 import { api } from './api.js';
 import { $, el, btn, toggle, appendLogLine } from './dom.js';
 import { openContextMenu } from './context-menu.js';
@@ -87,15 +87,27 @@ function createRow(p) {
   nameWrap.appendChild(el('span', 'project-name', p.name));
   if (p.pinned && !missing) nameWrap.appendChild(el('span', 'pin-icon', '\u{1F4CC}'));
   if (p.framework) nameWrap.appendChild(el('span', 'framework-badge', p.framework));
+  if (p.tags && p.tags.length) {
+    p.tags.forEach(t => nameWrap.appendChild(el('span', 'row-tag', t)));
+  }
   tdName.appendChild(nameWrap);
 
   if (missing) {
-    // Missing path: show relocate button spanning URL + actions + dots columns
     const tdRelocate = el('td');
     tdRelocate.colSpan = 3;
-    const relocateBtn = btn('relocate-btn', 'Relocate', e => {
+    const relocateBtn = btn('relocate-btn', 'Relocate', async e => {
       e.stopPropagation();
-      openDialog(p.id);
+      const folder = await api.pickFolder();
+      if (folder) {
+        p.directory = folder;
+        try {
+          const scan = await api.scanProject(folder);
+          if (scan.framework) p.framework = scan.framework;
+        } catch (_) {}
+        await api.saveConfig(state.projects);
+        await checkProjectPaths();
+        render();
+      }
     });
     tdRelocate.appendChild(relocateBtn);
 
