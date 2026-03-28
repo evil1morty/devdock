@@ -69,6 +69,65 @@ pub fn init_job_object() {}
 #[cfg(not(windows))]
 fn assign_to_job(_pid: u32) {}
 
+// ── Per-process Job Objects ───────────────────────
+// Each spawned process gets its own job object so TerminateJobObject
+// reliably kills ALL descendants (vite, node, etc.), unlike taskkill /T
+// which misses detached children.
+
+#[cfg(windows)]
+fn create_process_job() -> Option<usize> {
+    extern "system" {
+        fn CreateJobObjectW(attrs: *const u8, name: *const u16) -> *mut std::ffi::c_void;
+        fn SetInformationJobObject(job: *mut std::ffi::c_void, class: u32, info: *const u8, len: u32) -> i32;
+    }
+    unsafe {
+        let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+        if job.is_null() { return None; }
+        let mut info = [0u8; 112];
+        let flags_ptr = info.as_mut_ptr().add(16) as *mut u32;
+        *flags_ptr = 0x2000; // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        SetInformationJobObject(job, 9, info.as_ptr(), info.len() as u32);
+        Some(job as usize)
+    }
+}
+
+#[cfg(not(windows))]
+fn create_process_job() -> Option<usize> { None }
+
+#[cfg(windows)]
+fn assign_pid_to_job(job_handle: usize, pid: u32) {
+    extern "system" {
+        fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut std::ffi::c_void;
+        fn AssignProcessToJobObject(job: *mut std::ffi::c_void, proc: *mut std::ffi::c_void) -> i32;
+        fn CloseHandle(handle: *mut std::ffi::c_void) -> i32;
+    }
+    unsafe {
+        let proc = OpenProcess(0x001F0FFF, 0, pid);
+        if !proc.is_null() {
+            AssignProcessToJobObject(job_handle as *mut std::ffi::c_void, proc);
+            CloseHandle(proc);
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn assign_pid_to_job(_job_handle: usize, _pid: u32) {}
+
+#[cfg(windows)]
+fn terminate_job(job_handle: usize) {
+    extern "system" {
+        fn TerminateJobObject(job: *mut std::ffi::c_void, exit_code: u32) -> i32;
+        fn CloseHandle(handle: *mut std::ffi::c_void) -> i32;
+    }
+    unsafe {
+        TerminateJobObject(job_handle as *mut std::ffi::c_void, 1);
+        CloseHandle(job_handle as *mut std::ffi::c_void);
+    }
+}
+
+#[cfg(not(windows))]
+fn terminate_job(_job_handle: usize) {}
+
 const MAX_LOG_LINES: usize = 2000;
 
 // ── Shell helpers ──────────────────────────────────
@@ -266,13 +325,21 @@ pub fn start(
         }
     };
 
-    // Store PID and assign to job object (auto-kill on app crash)
+    // Store PID and assign to job objects
     let pid = child.id();
-    assign_to_job(pid);
+    assign_to_job(pid);  // global job: auto-kill on app crash
+
+    // Per-process job: reliable kill of ALL descendants on stop
+    let proc_job = create_process_job();
+    if let Some(jh) = proc_job {
+        assign_pid_to_job(jh, pid);
+    }
+
     {
         let mut map = processes.lock().unwrap();
         if let Some(ps) = map.get_mut(&key) {
             ps.pid = Some(pid);
+            ps.job_handle = proc_job;
         }
     }
 
@@ -318,6 +385,10 @@ pub fn start(
                 ps.running = false;
                 ps.pid = None;
                 ps.detected_url = None;
+                // Kill any orphaned children and close the job handle
+                if let Some(jh) = ps.job_handle.take() {
+                    terminate_job(jh);
+                }
             }
         }
         let _ = app_c.emit(
@@ -341,8 +412,14 @@ pub fn stop(
     processes: &Arc<Mutex<HashMap<String, ProcessState>>>,
 ) -> Result<(), String> {
     let key = process_key(id, label);
-    let map = processes.lock().map_err(|e| e.to_string())?;
-    if let Some(ps) = map.get(&key) {
+    let mut map = processes.lock().map_err(|e| e.to_string())?;
+    if let Some(ps) = map.get_mut(&key) {
+        // Prefer job termination — kills ALL descendants reliably
+        if let Some(jh) = ps.job_handle.take() {
+            terminate_job(jh);
+            return Ok(());
+        }
+        // Fallback to PID-based tree kill
         if let Some(pid) = ps.pid {
             kill_tree(pid);
             return Ok(());
@@ -357,11 +434,14 @@ pub fn stop_all(
     processes: &Arc<Mutex<HashMap<String, ProcessState>>>,
 ) -> Result<(), String> {
     let prefix = format!("{}::", id);
-    let map = processes.lock().map_err(|e| e.to_string())?;
+    let mut map = processes.lock().map_err(|e| e.to_string())?;
     let mut found = false;
-    for (key, ps) in map.iter() {
+    for (key, ps) in map.iter_mut() {
         if key.starts_with(&prefix) {
-            if let Some(pid) = ps.pid {
+            if let Some(jh) = ps.job_handle.take() {
+                terminate_job(jh);
+                found = true;
+            } else if let Some(pid) = ps.pid {
                 if ps.running {
                     kill_tree(pid);
                     found = true;
@@ -374,9 +454,11 @@ pub fn stop_all(
 
 /// Kill all tracked processes (used on app shutdown).
 pub fn kill_all(processes: &Arc<Mutex<HashMap<String, ProcessState>>>) {
-    if let Ok(map) = processes.lock() {
-        for ps in map.values() {
-            if let Some(pid) = ps.pid {
+    if let Ok(mut map) = processes.lock() {
+        for ps in map.values_mut() {
+            if let Some(jh) = ps.job_handle.take() {
+                terminate_job(jh);
+            } else if let Some(pid) = ps.pid {
                 kill_tree(pid);
             }
         }

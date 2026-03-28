@@ -15,6 +15,7 @@ pub struct ProcessState {
     pub logs: VecDeque<LogLine>,
     pub detected_url: Option<String>,
     pub url_confidence: UrlConfidence,
+    pub job_handle: Option<usize>,  // per-process job object for reliable kill
 }
 
 pub struct AppState {
