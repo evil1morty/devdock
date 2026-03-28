@@ -832,7 +832,6 @@ body {
 #dialog input:focus { border-color: var(--accent); }
 
 /* Tag input in dialog */
-#tag-pills { display: contents; }
 #tag-input-wrap {
   display: flex;
   flex-wrap: wrap;

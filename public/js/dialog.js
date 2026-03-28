@@ -9,7 +9,7 @@ const $inpName  = $('inp-name');
 const $inpDir   = $('inp-dir');
 const $cmdList  = $('cmd-list');
 const $envList  = $('env-list');
-const $tagPills = $('tag-pills');
+const $tagWrap  = $('tag-input-wrap');
 const $inpTag   = $('inp-tag');
 
 let dialogTags = [];  // tags for the current dialog session
@@ -46,19 +46,21 @@ export function closeDialog() {
 // ── Tag pills ─────────────────────────────────────
 
 function renderTagPills() {
-  $tagPills.innerHTML = '';
-  $tagPills.style.display = dialogTags.length ? '' : 'none';
+  // Remove existing pills directly from the flex wrapper
+  $tagWrap.querySelectorAll('.tag-pill').forEach(p => p.remove());
   dialogTags.forEach(tag => {
     const pill = el('span', 'tag-pill');
     pill.appendChild(document.createTextNode(tag));
     const rm = el('span', 'tag-pill-rm', '\u00d7');
     rm.addEventListener('click', e => {
       e.stopPropagation();
+      e.preventDefault();
       dialogTags = dialogTags.filter(t => t !== tag);
       renderTagPills();
     });
     pill.appendChild(rm);
-    $tagPills.appendChild(pill);
+    // Insert pill directly into flex wrapper, before the input
+    $tagWrap.insertBefore(pill, $inpTag);
   });
 }
 
