@@ -662,8 +662,13 @@ body {
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 #log-tabs:empty { display: none; }
+#log-tabs::-webkit-scrollbar { height: 3px; }
+#log-tabs::-webkit-scrollbar-track { background: transparent; }
+#log-tabs::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
 
 .log-tab {
   display: flex;
@@ -680,6 +685,7 @@ body {
   cursor: pointer;
   transition: all .15s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .log-tab:hover {
   color: var(--text);
@@ -714,11 +720,15 @@ body {
   height: 26px;
   margin-left: auto;
   font-size: 12px;
-  background: none;
+  background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all .12s;
+  position: sticky;
+  right: 0;
+  flex-shrink: 0;
+  z-index: 1;
 }
 .run-action {
   color: var(--green);
@@ -757,7 +767,7 @@ body {
 #log-output::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
 
 .log-line { color: var(--text2); }
-.log-line.stderr { color: var(--red); opacity: .85; }
+.log-line.stderr { color: var(--red); }
 .log-line.info { color: var(--text3); font-style: italic; }
 
 .log-empty {
@@ -822,6 +832,7 @@ body {
 #dialog input:focus { border-color: var(--accent); }
 
 /* Tag input in dialog */
+#tag-pills { display: contents; }
 #tag-input-wrap {
   display: flex;
   flex-wrap: wrap;

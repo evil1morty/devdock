@@ -261,13 +261,13 @@ fn spawn_reader(
                 }
             }
 
-            push_log(&procs, &key, clean.clone(), stream_name);
+            push_log(&procs, &key, line.clone(), stream_name);
             let _ = app.emit(
                 "process-log",
                 LogPayload {
                     id: id.clone(),
                     label: label.clone(),
-                    text: clean,
+                    text: line,
                     stream: stream_name.into(),
                 },
             );

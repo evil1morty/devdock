@@ -1,3 +1,5 @@
+import { ansiToHtml } from './ansi.js';
+
 // ── DOM helpers ────────────────────────────────────
 
 /** Shorthand for getElementById */
@@ -25,7 +27,13 @@ export function toggle(node, visible) {
 
 /** Append a log line div to a container */
 export function appendLogLine(container, text, stream) {
-  const div = el('div', 'log-line ' + (stream || 'stdout'), text);
+  const div = document.createElement('div');
+  div.className = 'log-line ' + (stream || 'stdout');
+  if (text.includes('\x1b')) {
+    div.innerHTML = ansiToHtml(text);
+  } else {
+    div.textContent = text;
+  }
   container.appendChild(div);
 
   const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;

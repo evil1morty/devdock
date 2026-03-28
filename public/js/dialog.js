@@ -52,7 +52,8 @@ function renderTagPills() {
     const pill = el('span', 'tag-pill');
     pill.appendChild(document.createTextNode(tag));
     const rm = el('span', 'tag-pill-rm', '\u00d7');
-    rm.addEventListener('click', () => {
+    rm.addEventListener('click', e => {
+      e.stopPropagation();
       dialogTags = dialogTags.filter(t => t !== tag);
       renderTagPills();
     });
@@ -61,7 +62,8 @@ function renderTagPills() {
   });
 }
 
-function addTagFromInput() {
+/** Commit any text sitting in the tag input into dialogTags */
+function commitPendingTag() {
   const tag = $inpTag.value.trim().toLowerCase();
   if (tag && !dialogTags.includes(tag)) {
     dialogTags.push(tag);
@@ -71,12 +73,13 @@ function addTagFromInput() {
 }
 
 $inpTag.addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); addTagFromInput(); }
+  if (e.key === 'Enter') { e.preventDefault(); commitPendingTag(); }
   if (e.key === 'Backspace' && !$inpTag.value && dialogTags.length) {
     dialogTags.pop();
     renderTagPills();
   }
 });
+$inpTag.addEventListener('blur', commitPendingTag);
 
 // ── Helpers ────────────────────────────────────────
 
@@ -257,6 +260,7 @@ $('btn-save').addEventListener('click', async () => {
     framework = scan.framework;
   } catch (_) {}
 
+  commitPendingTag();
   const tags = [...dialogTags];
   if (state.editingId) {
     const proj = state.projects.find(p => p.id === state.editingId);
