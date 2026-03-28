@@ -1,3 +1,5 @@
+import { api } from './api.js';
+
 // Shared application state
 export const state = {
   projects: [],
@@ -7,6 +9,7 @@ export const state = {
   ctxProjectId: null,  // context menu target
   editingId: null,     // dialog: null = add, string = edit
   activeTag: null,     // tag filter: null = show all
+  missingPaths: new Set(),  // project IDs whose directory doesn't exist
   settings: {
     claude_command: 'claude',
     claude_mode: 'tab',
@@ -34,4 +37,18 @@ export function getStatus(id) {
 /** Status for a specific command within a project */
 export function getCmdStatus(id, label) {
   return state.statuses[id]?.[label] || { running: false, url: null };
+}
+
+/** Check which project directories exist and update missingPaths */
+export async function checkProjectPaths() {
+  const paths = state.projects.map(p => p.directory);
+  if (paths.length === 0) { state.missingPaths = new Set(); return; }
+  try {
+    const result = await api.checkPathsExist(paths);
+    state.missingPaths = new Set(
+      state.projects.filter(p => result[p.directory] === false).map(p => p.id)
+    );
+  } catch (_) {
+    state.missingPaths = new Set();
+  }
 }

@@ -3,6 +3,7 @@ import { api } from './api.js';
 import { $, el, btn, toggle, appendLogLine } from './dom.js';
 import { openContextMenu } from './context-menu.js';
 import { openLogPanel } from './logs.js';
+import { openDialog } from './dialog.js';
 
 const $list   = $('project-list');
 const $empty  = $('empty');
@@ -68,23 +69,39 @@ function renderTagBar() {
 
 function createRow(p) {
   const s = getStatus(p.id);
+  const missing = state.missingPaths.has(p.id);
   let cls = 'project-row';
-  if (p.id === state.activeLogId) cls += ' active';
-  if (p.pinned) cls += ' pinned';
+  if (missing) cls += ' missing';
+  else if (p.id === state.activeLogId) cls += ' active';
+  if (p.pinned && !missing) cls += ' pinned';
   const tr = el('tr', cls);
   tr.dataset.id = p.id;
 
   // Status dot
   const tdStatus = el('td');
-  tdStatus.appendChild(el('span', 'status-dot ' + (s.running ? 'running' : 'stopped')));
+  tdStatus.appendChild(el('span', 'status-dot ' + (missing ? 'error' : s.running ? 'running' : 'stopped')));
 
   // Name + framework
   const tdName = el('td');
   const nameWrap = el('div', 'name-cell');
   nameWrap.appendChild(el('span', 'project-name', p.name));
-  if (p.pinned) nameWrap.appendChild(el('span', 'pin-icon', '\u{1F4CC}'));
+  if (p.pinned && !missing) nameWrap.appendChild(el('span', 'pin-icon', '\u{1F4CC}'));
   if (p.framework) nameWrap.appendChild(el('span', 'framework-badge', p.framework));
   tdName.appendChild(nameWrap);
+
+  if (missing) {
+    // Missing path: show relocate button spanning URL + actions + dots columns
+    const tdRelocate = el('td');
+    tdRelocate.colSpan = 3;
+    const relocateBtn = btn('relocate-btn', 'Relocate', e => {
+      e.stopPropagation();
+      openDialog(p.id);
+    });
+    tdRelocate.appendChild(relocateBtn);
+
+    tr.append(tdStatus, tdName, tdRelocate);
+    return tr;
+  }
 
   // URL
   const tdUrl = el('td');

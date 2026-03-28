@@ -23,4 +23,5 @@ export const api = {
   forceClose:      ()              => invoke('force_close'),
   getAutostart:    ()              => invoke('get_autostart'),
   setAutostart:    (enabled)       => invoke('set_autostart', { enabled }),
+  checkPathsExist: (paths)         => invoke('check_paths_exist', { paths }),
 };

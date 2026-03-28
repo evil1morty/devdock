@@ -1,4 +1,4 @@
-import { state } from './state.js';
+import { state, checkProjectPaths } from './state.js';
 import { api } from './api.js';
 import { $, el, btn, closeOnBackdrop } from './dom.js';
 import { render } from './dashboard.js';
@@ -266,6 +266,7 @@ $('btn-save').addEventListener('click', async () => {
   }
 
   await api.saveConfig(state.projects);
+  await checkProjectPaths();
   render();
   closeDialog();
 });

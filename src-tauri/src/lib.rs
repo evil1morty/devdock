@@ -119,6 +119,7 @@ pub fn run() {
             commands::force_close,
             commands::get_autostart,
             commands::set_autostart,
+            commands::check_paths_exist,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

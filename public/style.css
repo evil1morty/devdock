@@ -384,6 +384,12 @@ body {
 .project-row.active { background: var(--bg3); }
 .project-row.pinned { background: var(--bg2); }
 .pin-icon { font-size: 11px; color: var(--text3); margin-left: 4px; }
+.project-row.missing {
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+}
+.project-row.missing:hover {
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+}
 .project-row.flash-red {
   animation: flashRed .8s ease;
 }
@@ -508,6 +514,26 @@ body {
 }
 .play-btn:hover { opacity: .7; }
 .play-btn.running { color: var(--red); }
+
+/* Relocate button (missing path) */
+.relocate-btn {
+  padding: 3px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--sans);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: var(--red);
+  border: 1px solid color-mix(in srgb, var(--red) 30%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.relocate-btn:hover {
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+}
 
 .input-error { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }
 

@@ -1,4 +1,4 @@
-import { state } from './js/state.js';
+import { state, checkProjectPaths } from './js/state.js';
 import { api, listen } from './js/api.js';
 import { $ } from './js/dom.js';
 import { render } from './js/dashboard.js';
@@ -15,6 +15,9 @@ async function init() {
   state.statuses = await api.getAllStatus();
 
   applyTheme(state.settings.theme);
+
+  // Check which project directories exist
+  await checkProjectPaths();
 
   // Show version in settings
   try {

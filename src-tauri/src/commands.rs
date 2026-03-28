@@ -580,6 +580,16 @@ pub fn force_close(app: AppHandle, state: State<'_, AppState>) {
     }
 }
 
+// ── Path validation ───────────────────────────────
+
+#[tauri::command]
+pub fn check_paths_exist(paths: Vec<String>) -> HashMap<String, bool> {
+    paths.into_iter().map(|p| {
+        let exists = Path::new(&p).is_dir();
+        (p, exists)
+    }).collect()
+}
+
 // ── Config persistence ─────────────────────────────
 
 #[tauri::command]
