@@ -28,8 +28,7 @@ export function render() {
 
   const filter = $search.value.toLowerCase().trim();
   const tag = state.activeTag;
-  const sorted = [...state.projects].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
-  sorted.forEach(p => {
+  state.projects.forEach(p => {
     if (filter && !p.name.toLowerCase().includes(filter) && !(p.framework || '').toLowerCase().includes(filter)
         && !(p.tags || []).some(t => t.toLowerCase().includes(filter))) return;
     if (tag && !(p.tags || []).includes(tag)) return;
@@ -181,6 +180,170 @@ export async function runCommand(id, label, cmd, cwd, env = []) {
     toast(`Failed to start ${label}: ${err}`, 'error', 5000);
   }
 }
+
+// ── Sort helpers ──────────────────────────────────
+
+/** Ensure pinned projects come first in the array (stable). */
+export function ensurePinnedOrder() {
+  const pinned = state.projects.filter(p => p.pinned);
+  const normal = state.projects.filter(p => !p.pinned);
+  state.projects = [...pinned, ...normal];
+}
+
+// ── Drag-and-drop reorder ─────────────────────────
+
+const DRAG_THRESHOLD = 6; // px before drag activates
+let _drag = null;
+
+function onRowPointerDown(e) {
+  // Ignore if clicking interactive elements
+  if (e.target.closest('button, a, .play-btn, .dots-btn, .relocate-btn, .url-link')) return;
+  if (e.button !== 0) return; // left button only
+
+  const tr = e.target.closest('.project-row');
+  if (!tr) return;
+
+  const id = tr.dataset.id;
+  const proj = state.projects.find(p => p.id === id);
+  if (!proj) return;
+
+  _drag = {
+    id,
+    el: tr,
+    isPinned: !!proj.pinned,
+    startY: e.clientY,
+    startX: e.clientX,
+    active: false,
+    ghost: null,
+    indicator: null,
+    offsetY: 0,
+    dropTarget: null,
+  };
+
+  document.addEventListener('pointermove', onDragMove);
+  document.addEventListener('pointerup', onDragEnd);
+}
+
+function activateDrag() {
+  _drag.active = true;
+  _drag.el.classList.add('dragging');
+  document.body.classList.add('is-dragging');
+
+  // Create ghost (wrap cloned row in a table so it renders properly)
+  const rect = _drag.el.getBoundingClientRect();
+  const ghost = document.createElement('table');
+  ghost.className = 'drag-ghost';
+  ghost.style.width = rect.width + 'px';
+  ghost.style.top = rect.top + 'px';
+  ghost.style.left = rect.left + 'px';
+  const tbody = document.createElement('tbody');
+  const clonedRow = _drag.el.cloneNode(true);
+  clonedRow.classList.remove('dragging');
+  tbody.appendChild(clonedRow);
+  ghost.appendChild(tbody);
+  document.body.appendChild(ghost);
+  _drag.ghost = ghost;
+  _drag.offsetY = _drag.startY - rect.top;
+
+  // Create drop indicator line
+  const ind = document.createElement('div');
+  ind.className = 'drop-indicator';
+  document.body.appendChild(ind);
+  _drag.indicator = ind;
+}
+
+function onDragMove(e) {
+  if (!_drag) return;
+
+  if (!_drag.active) {
+    const dy = Math.abs(e.clientY - _drag.startY);
+    const dx = Math.abs(e.clientX - _drag.startX);
+    if (dy < DRAG_THRESHOLD) return;
+    if (dx > dy * 2) { cleanupDrag(); return; } // horizontal move, abort
+    activateDrag();
+  }
+
+  // Move ghost
+  _drag.ghost.style.top = (e.clientY - _drag.offsetY) + 'px';
+
+  // Find closest row in the same group (pinned/normal)
+  const rows = [...$list.querySelectorAll('.project-row:not(.dragging)')];
+  let best = null, bestDist = Infinity, before = true;
+
+  for (const row of rows) {
+    const rp = state.projects.find(p => p.id === row.dataset.id);
+    if (!rp) continue;
+    // Only allow drop within same group
+    if (!!rp.pinned !== _drag.isPinned) continue;
+
+    const rect = row.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    const dist = Math.abs(e.clientY - mid);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = row;
+      before = e.clientY < mid;
+    }
+  }
+
+  if (best) {
+    const rect = best.getBoundingClientRect();
+    const tableRect = $list.closest('table').getBoundingClientRect();
+    const y = before ? rect.top : rect.bottom;
+    _drag.indicator.style.display = 'block';
+    _drag.indicator.style.top = y + 'px';
+    _drag.indicator.style.left = tableRect.left + 'px';
+    _drag.indicator.style.width = tableRect.width + 'px';
+    _drag.dropTarget = { id: best.dataset.id, before };
+  } else {
+    _drag.indicator.style.display = 'none';
+    _drag.dropTarget = null;
+  }
+}
+
+function onDragEnd() {
+  document.removeEventListener('pointermove', onDragMove);
+  document.removeEventListener('pointerup', onDragEnd);
+  if (!_drag) return;
+
+  if (_drag.active && _drag.dropTarget) {
+    const { id: targetId, before } = _drag.dropTarget;
+    const fromIdx = state.projects.findIndex(p => p.id === _drag.id);
+    let toIdx = state.projects.findIndex(p => p.id === targetId);
+    if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+      const [moved] = state.projects.splice(fromIdx, 1);
+      // Recalculate toIdx after removal
+      toIdx = state.projects.findIndex(p => p.id === targetId);
+      const insertIdx = before ? toIdx : toIdx + 1;
+      state.projects.splice(insertIdx, 0, moved);
+      api.saveConfig(state.projects);
+      render();
+    }
+  }
+
+  if (_drag.active) {
+    // Suppress the click that would open logs
+    const row = _drag.el;
+    const suppress = e => { e.stopImmediatePropagation(); e.preventDefault(); };
+    row.addEventListener('click', suppress, { capture: true, once: true });
+    setTimeout(() => row.removeEventListener('click', suppress, { capture: true }), 50);
+  }
+
+  cleanupDrag();
+}
+
+function cleanupDrag() {
+  if (!_drag) return;
+  _drag.ghost?.remove();
+  _drag.indicator?.remove();
+  _drag.el?.classList.remove('dragging');
+  document.body.classList.remove('is-dragging');
+  document.removeEventListener('pointermove', onDragMove);
+  document.removeEventListener('pointerup', onDragEnd);
+  _drag = null;
+}
+
+$list.addEventListener('pointerdown', onRowPointerDown);
 
 // ── Search ─────────────────────────────────────────
 

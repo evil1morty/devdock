@@ -452,6 +452,44 @@ body {
   100% { background: transparent; }
 }
 
+/* Drag-and-drop reorder */
+.project-row.dragging {
+  opacity: .25;
+}
+table.drag-ghost {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: .85;
+  background: var(--bg3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+table.drag-ghost td {
+  padding: 10px 12px;
+  vertical-align: middle;
+}
+.drop-indicator {
+  position: fixed;
+  z-index: 9998;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  pointer-events: none;
+  display: none;
+  box-shadow: 0 0 6px rgba(88,166,255,.5);
+}
+body.is-dragging {
+  user-select: none;
+  cursor: grabbing !important;
+}
+body.is-dragging * {
+  cursor: grabbing !important;
+}
+
 .project-row td {
   padding: 10px 12px;
   vertical-align: middle;

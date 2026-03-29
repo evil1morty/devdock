@@ -1,7 +1,7 @@
 import { state, checkProjectPaths, getProject } from './js/state.js';
 import { api, listen } from './js/api.js';
 import { $ } from './js/dom.js';
-import { render } from './js/dashboard.js';
+import { render, ensurePinnedOrder } from './js/dashboard.js';
 import { appendLog, updateLogHeader, updateLogTabs, closeLogPanel } from './js/logs.js';
 import { closeContextMenu, closeConfirm, showConfirm } from './js/context-menu.js';
 import { closeDialog } from './js/dialog.js';
@@ -13,6 +13,7 @@ import { toast } from './js/toast.js';
 async function init() {
   state.settings = await api.loadSettings();
   state.projects = await api.loadConfig();
+  ensurePinnedOrder();
   state.statuses = await api.getAllStatus();
 
   applyTheme(state.settings.theme);

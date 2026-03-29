@@ -1,7 +1,7 @@
 import { state, getProject, getStatus, getCmdStatus } from './state.js';
 import { api } from './api.js';
 import { $, el, btn, toggle, closeOnBackdrop } from './dom.js';
-import { render, runCommand } from './dashboard.js';
+import { render, runCommand, ensurePinnedOrder } from './dashboard.js';
 import { closeLogPanel } from './logs.js';
 import { openDialog } from './dialog.js';
 import { toast } from './toast.js';
@@ -113,6 +113,7 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
       case 'pin':
         if (proj) {
           proj.pinned = !proj.pinned;
+          ensurePinnedOrder();
           api.saveConfig(state.projects);
           render();
         }
