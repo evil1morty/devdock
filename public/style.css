@@ -443,14 +443,27 @@ body {
   white-space: nowrap;
 }
 .row-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 9px;
-  font-weight: 500;
-  padding: 1px 6px;
+  font-weight: 600;
+  padding: 1px 4px 1px 7px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--accent) 15%, transparent);
   color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
   white-space: nowrap;
 }
+.row-tag-rm {
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  opacity: .4;
+  transition: opacity .15s;
+}
+.row-tag-rm:hover { opacity: 1; }
+.row-tag:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); }
 
 /* URL cell */
 .url-link {
