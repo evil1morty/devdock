@@ -8,6 +8,8 @@ const $dash     = $('dashboard');
 const $logName  = $('log-project-name');
 const $logTabs  = $('log-tabs');
 const $logOut   = $('log-output');
+const $arrowL   = $('tab-arrow-left');
+const $arrowR   = $('tab-arrow-right');
 
 // ── Open / Close ───────────────────────────────────
 
@@ -112,6 +114,9 @@ export function updateLogTabs() {
     tab.appendChild(document.createTextNode(c.label));
     tab.addEventListener('click', () => switchTab(c.label));
     $logTabs.appendChild(tab);
+
+    // Scroll active tab into view
+    if (isActive) requestAnimationFrame(() => tab.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
   });
 
   // Action buttons for current tab
@@ -127,7 +132,27 @@ export function updateLogTabs() {
       btn('log-tab-action run-action', '\u25B6', () => runCommand(proj.id, cmd.label, cmd.cmd, proj.directory, proj.env))
     );
   }
+
+  updateTabArrows();
 }
+
+// ── Tab scroll arrows ─────────────────────────────
+
+function updateTabArrows() {
+  const overflows = $logTabs.scrollWidth > $logTabs.clientWidth;
+  toggle($arrowL, overflows && $logTabs.scrollLeft > 0);
+  toggle($arrowR, overflows && $logTabs.scrollLeft + $logTabs.clientWidth < $logTabs.scrollWidth - 1);
+}
+
+$arrowL.addEventListener('click', () => {
+  $logTabs.scrollBy({ left: -120, behavior: 'smooth' });
+  setTimeout(updateTabArrows, 200);
+});
+$arrowR.addEventListener('click', () => {
+  $logTabs.scrollBy({ left: 120, behavior: 'smooth' });
+  setTimeout(updateTabArrows, 200);
+});
+$logTabs.addEventListener('scroll', updateTabArrows);
 
 // ── Button handlers ────────────────────────────────
 

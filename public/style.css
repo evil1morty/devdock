@@ -654,21 +654,44 @@ body {
 .log-actions button.copied { background: var(--green); color: #fff; border-color: var(--green); }
 
 /* Command tabs in log panel */
+#log-tabs-wrap {
+  display: flex;
+  align-items: center;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+#log-tabs-wrap:has(#log-tabs:empty) { display: none; }
+
+.tab-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  color: var(--text2);
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  z-index: 2;
+  height: 100%;
+}
+.tab-arrow:hover { color: var(--text); background: var(--bg3); }
+
 #log-tabs {
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 0 14px;
-  background: var(--bg2);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  padding: 0 6px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 #log-tabs:empty { display: none; }
-#log-tabs::-webkit-scrollbar { height: 3px; }
-#log-tabs::-webkit-scrollbar-track { background: transparent; }
-#log-tabs::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+#log-tabs::-webkit-scrollbar { display: none; }
 
 .log-tab {
   display: flex;
