@@ -139,7 +139,8 @@ pub fn spawn_shell(command: &str, cwd: &str, env: &[EnvVar]) -> Result<std::proc
         .current_dir(cwd)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .creation_flags(CREATE_NO_WINDOW_FLAG);
+        .creation_flags(CREATE_NO_WINDOW_FLAG)
+        .env("FORCE_COLOR", "3");
     for e in env {
         cmd.env(&e.key, &e.value);
     }
@@ -153,7 +154,8 @@ pub fn spawn_shell(command: &str, cwd: &str, env: &[EnvVar]) -> Result<std::proc
     cmd.args(["-c", command])
         .current_dir(cwd)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(Stdio::piped())
+        .env("FORCE_COLOR", "3");
     for e in env {
         cmd.env(&e.key, &e.value);
     }
