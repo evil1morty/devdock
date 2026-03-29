@@ -775,6 +775,7 @@ body.is-dragging * {
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  padding-left: 6px;
   padding-right: 8px;
 }
 
