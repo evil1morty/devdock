@@ -1,4 +1,4 @@
-import { state, checkProjectPaths } from './js/state.js';
+import { state, checkProjectPaths, getProject } from './js/state.js';
 import { api, listen } from './js/api.js';
 import { $ } from './js/dom.js';
 import { render } from './js/dashboard.js';
@@ -6,6 +6,7 @@ import { appendLog, updateLogHeader, updateLogTabs, closeLogPanel } from './js/l
 import { closeContextMenu, closeConfirm, showConfirm } from './js/context-menu.js';
 import { closeDialog } from './js/dialog.js';
 import { applyTheme } from './js/settings.js';
+import { toast } from './js/toast.js';
 
 // ── Bootstrap ──────────────────────────────────────
 
@@ -43,10 +44,20 @@ async function init() {
 
   await listen('process-status', e => {
     const { id, label, running, url } = e.payload;
+    const wasRunning = state.statuses[id]?.[label]?.running;
     if (!state.statuses[id]) state.statuses[id] = {};
     state.statuses[id][label] = { running, url };
     render();
     if (id === state.activeLogId) { updateLogHeader(); updateLogTabs(); }
+
+    // Toast on state change
+    const proj = getProject(id);
+    const name = proj?.name || id;
+    if (running && !wasRunning) {
+      toast(`${name} → ${label} started`, 'success', 3000);
+    } else if (!running && wasRunning) {
+      toast(`${name} → ${label} stopped`, 'warn', 3000);
+    }
   });
 
   await listen('confirm-close', () => {

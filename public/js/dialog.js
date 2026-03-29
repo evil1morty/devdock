@@ -2,6 +2,7 @@ import { state, checkProjectPaths } from './state.js';
 import { api } from './api.js';
 import { $, el, btn, closeOnBackdrop } from './dom.js';
 import { render } from './dashboard.js';
+import { toast } from './toast.js';
 
 const $overlay  = $('dialog-overlay');
 const $dlgTitle = $('dialog-title');
@@ -276,10 +277,12 @@ $('btn-save').addEventListener('click', async () => {
     state.projects.push({ id: crypto.randomUUID(), name, directory: dir, framework, commands, env, tags, pinned: false });
   }
 
+  const isEdit = !!state.editingId;
   await api.saveConfig(state.projects);
   await checkProjectPaths();
   render();
   closeDialog();
+  toast(isEdit ? `${name} updated` : `${name} added`, 'success', 3000);
 });
 
 $('btn-add').addEventListener('click', () => openDialog(null));

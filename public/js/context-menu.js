@@ -4,6 +4,7 @@ import { $, el, btn, toggle, closeOnBackdrop } from './dom.js';
 import { render, runCommand } from './dashboard.js';
 import { closeLogPanel } from './logs.js';
 import { openDialog } from './dialog.js';
+import { toast } from './toast.js';
 
 const $ctx     = $('context-menu');
 const $ctxCmds = $('ctx-commands');
@@ -127,7 +128,10 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
             if (scan.framework) proj.framework = scan.framework;
             await api.saveConfig(state.projects);
             render();
-          } catch (_) {}
+            toast(`${proj.name} rescanned`, 'success', 2500);
+          } catch (_) {
+            toast(`Failed to rescan ${proj.name}`, 'error', 4000);
+          }
         }
         break;
       case 'edit':
@@ -135,6 +139,7 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
         break;
       case 'remove':
         showConfirm(`Remove "${proj?.name}"?`, async () => {
+          const removedName = proj?.name;
           if (s.running) {
             try { await api.stopAll(id); } catch (_) {}
           }
@@ -142,6 +147,7 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
           await api.saveConfig(state.projects);
           if (state.activeLogId === id) closeLogPanel();
           render();
+          toast(`${removedName} removed`, 'warn', 3000);
         });
         break;
     }

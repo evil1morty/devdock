@@ -4,6 +4,7 @@ import { $, el, btn, toggle, appendLogLine } from './dom.js';
 import { openContextMenu } from './context-menu.js';
 import { openLogPanel } from './logs.js';
 import { openDialog } from './dialog.js';
+import { toast } from './toast.js';
 
 const $list   = $('project-list');
 const $empty  = $('empty');
@@ -98,6 +99,7 @@ function createRow(p) {
         p.tags = p.tags.filter(tag => tag !== t);
         await api.saveConfig(state.projects);
         render();
+        toast(`Tag "${t}" removed from ${p.name}`, 'info', 2500);
       });
       chip.appendChild(rm);
       nameWrap.appendChild(chip);
@@ -192,6 +194,7 @@ export async function runCommand(id, label, cmd, cwd, env = []) {
     if (id === state.activeLogId && label === state.activeLogTab) {
       appendLogLine($logOut, `Error: ${err}`, 'stderr');
     }
+    toast(`Failed to start ${label}: ${err}`, 'error', 5000);
   }
 }
 
