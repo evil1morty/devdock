@@ -10,6 +10,7 @@ const $logTabs  = $('log-tabs');
 const $logOut   = $('log-output');
 const $arrowL   = $('tab-arrow-left');
 const $arrowR   = $('tab-arrow-right');
+const $tabAction = $('tab-action');
 
 // ── Open / Close ───────────────────────────────────
 
@@ -93,6 +94,7 @@ export function updateLogHeader() {
 
 export function updateLogTabs() {
   $logTabs.innerHTML = '';
+  $tabAction.innerHTML = '';
   const proj = getProject(state.activeLogId);
   if (!proj) return;
 
@@ -115,20 +117,26 @@ export function updateLogTabs() {
     tab.addEventListener('click', () => switchTab(c.label));
     $logTabs.appendChild(tab);
 
-    // Scroll active tab into view
-    if (isActive) requestAnimationFrame(() => tab.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
+    // Scroll active tab into view without affecting parent scroll
+    if (isActive) {
+      requestAnimationFrame(() => {
+        const left = tab.offsetLeft - $logTabs.offsetLeft;
+        $logTabs.scrollLeft = Math.max(0, left - 20);
+      });
+    }
   });
 
-  // Action buttons for current tab
+  // Action button — outside scrollable area so it's always visible
+  $tabAction.innerHTML = '';
   const cs = getCmdStatus(proj.id, state.activeLogTab);
   const cmd = proj.commands.find(c => c.label === state.activeLogTab);
 
   if (cs.running) {
-    $logTabs.appendChild(
+    $tabAction.appendChild(
       btn('log-tab-action stop-action', '\u25A0', () => api.stopProcess(proj.id, state.activeLogTab))
     );
   } else if (cmd) {
-    $logTabs.appendChild(
+    $tabAction.appendChild(
       btn('log-tab-action run-action', '\u25B6', () => runCommand(proj.id, cmd.label, cmd.cmd, proj.directory, proj.env))
     );
   }
@@ -153,6 +161,7 @@ $arrowR.addEventListener('click', () => {
   setTimeout(updateTabArrows, 200);
 });
 $logTabs.addEventListener('scroll', updateTabArrows);
+window.addEventListener('resize', updateTabArrows);
 
 // ── Button handlers ────────────────────────────────
 

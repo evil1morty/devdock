@@ -694,6 +694,12 @@ body {
 }
 .tab-arrow:hover { color: var(--text); background: var(--bg3); }
 
+#tab-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
 #log-tabs {
   display: flex;
   align-items: center;
