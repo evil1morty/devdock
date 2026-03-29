@@ -19,8 +19,9 @@ export function openContextMenu(id, e) {
   // Command buttons — always shown (even when running)
   $ctxCmds.innerHTML = '';
   const showCmds = proj && proj.commands.length > 0;
+  const CMD_VISIBLE = 4;
   if (showCmds) {
-    proj.commands.forEach(c => {
+    const makeCmdBtn = (c) => {
       const cs = getCmdStatus(id, c.label);
       const b = el('button', 'ctx-cmd');
       if (cs.running) {
@@ -33,8 +34,36 @@ export function openContextMenu(id, e) {
         runCommand(id, c.label, c.cmd, proj.directory, proj.env);
         closeContextMenu();
       });
-      $ctxCmds.appendChild(b);
-    });
+      return b;
+    };
+
+    const visible = proj.commands.slice(0, CMD_VISIBLE);
+    const overflow = proj.commands.slice(CMD_VISIBLE);
+
+    visible.forEach(c => $ctxCmds.appendChild(makeCmdBtn(c)));
+
+    if (overflow.length > 0) {
+      const moreWrap = el('div', 'ctx-overflow hidden');
+      overflow.forEach(c => moreWrap.appendChild(makeCmdBtn(c)));
+
+      const moreBtn = el('button', 'ctx-cmd ctx-more');
+      moreBtn.appendChild(el('span', 'ctx-icon', '\u00B7\u00B7\u00B7'));
+      moreBtn.appendChild(document.createTextNode(` ${overflow.length} more\u2026`));
+      moreBtn.addEventListener('click', ev => {
+        ev.stopPropagation();
+        toggle(moreWrap, false);
+        moreBtn.remove();
+        // Reposition if menu overflows viewport
+        const menuH = $ctx.offsetHeight;
+        const curY = parseFloat($ctx.style.top);
+        if (curY + menuH > window.innerHeight - 8) {
+          $ctx.style.top = Math.max(8, window.innerHeight - menuH - 8) + 'px';
+        }
+      });
+
+      $ctxCmds.appendChild(moreBtn);
+      $ctxCmds.appendChild(moreWrap);
+    }
   }
 
   toggle($('div-cmds'), showCmds);

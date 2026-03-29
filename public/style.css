@@ -686,6 +686,10 @@ body.is-dragging * {
 .ctx-cmd:hover { background: var(--bg4); }
 .ctx-cmd .ctx-icon { color: var(--green); }
 .ctx-cmd .ctx-running-icon { color: var(--green); font-size: 10px; }
+.ctx-more { color: var(--text2); }
+.ctx-more .ctx-icon { color: var(--text3); }
+.ctx-more:hover { color: var(--text); }
+.ctx-overflow { border-top: 1px solid var(--border); margin-top: 2px; padding-top: 2px; }
 
 /* ── Log panel ──────────────────────────────────── */
 #log-panel {
