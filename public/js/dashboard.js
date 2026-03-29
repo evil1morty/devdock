@@ -95,6 +95,7 @@ function createRow(p) {
   if (missing) {
     const tdRelocate = el('td');
     tdRelocate.colSpan = 3;
+    tdRelocate.style.textAlign = 'right';
     const relocateBtn = btn('relocate-btn', 'Relocate', async e => {
       e.stopPropagation();
       const folder = await api.pickFolder();
