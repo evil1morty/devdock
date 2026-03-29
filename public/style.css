@@ -735,6 +735,7 @@ body.is-dragging * {
 }
 .log-actions button:hover { background: var(--bg4); color: var(--text); }
 .log-actions button.copied { background: var(--green); color: #fff; border-color: var(--green); }
+.log-actions button.cleared { background: var(--yellow); color: #fff; border-color: var(--yellow); }
 
 /* Command tabs in log panel */
 #log-tabs-wrap {
@@ -770,6 +771,7 @@ body.is-dragging * {
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  padding-right: 8px;
 }
 
 #log-tabs {

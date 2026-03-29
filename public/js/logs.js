@@ -205,5 +205,14 @@ $('log-copy').addEventListener('click', () => {
     copyBtn.classList.remove('copied');
   }, 1500);
 });
-$('log-clear').addEventListener('click', () => { $logOut.innerHTML = ''; });
+$('log-clear').addEventListener('click', () => {
+  $logOut.innerHTML = '';
+  const clearBtn = $('log-clear');
+  clearBtn.textContent = 'Cleared!';
+  clearBtn.classList.add('cleared');
+  setTimeout(() => {
+    clearBtn.textContent = 'Clear';
+    clearBtn.classList.remove('cleared');
+  }, 1500);
+});
 $('log-close').addEventListener('click', closeLogPanel);
