@@ -236,6 +236,11 @@ $('btn-add-env').addEventListener('click', () => addEnvRow('', ''));
 $('btn-cancel').addEventListener('click', closeDialog);
 closeOnBackdrop($overlay, closeDialog);
 
+// Prevent Save mousedown from blurring the tag input —
+// blur triggers renderTagPills() which shifts the layout and
+// causes the click event to miss the button entirely.
+$('btn-save').addEventListener('mousedown', e => e.preventDefault());
+
 // Save
 $('btn-save').addEventListener('click', async () => {
   const name = $inpName.value.trim();
