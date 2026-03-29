@@ -163,6 +163,28 @@ $arrowR.addEventListener('click', () => {
 $logTabs.addEventListener('scroll', updateTabArrows);
 window.addEventListener('resize', updateTabArrows);
 
+// ── Drag-to-scroll (touchpad / mouse) ────────────
+let _dragX = 0, _dragScroll = 0, _dragging = false;
+
+$logTabs.addEventListener('pointerdown', e => {
+  if (e.target.closest('.log-tab')) return;
+  _dragging = true;
+  _dragX = e.clientX;
+  _dragScroll = $logTabs.scrollLeft;
+  $logTabs.setPointerCapture(e.pointerId);
+  $logTabs.style.cursor = 'grabbing';
+});
+$logTabs.addEventListener('pointermove', e => {
+  if (!_dragging) return;
+  $logTabs.scrollLeft = _dragScroll - (e.clientX - _dragX);
+});
+$logTabs.addEventListener('pointerup', () => {
+  if (!_dragging) return;
+  _dragging = false;
+  $logTabs.style.cursor = '';
+  updateTabArrows();
+});
+
 // ── Button handlers ────────────────────────────────
 
 $dash.addEventListener('click', (e) => {

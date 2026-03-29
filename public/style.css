@@ -496,28 +496,6 @@ body {
   color: var(--text2);
   white-space: nowrap;
 }
-.row-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 9px;
-  font-weight: 600;
-  padding: 1px 4px 1px 7px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
-  white-space: nowrap;
-}
-.row-tag-rm {
-  cursor: pointer;
-  font-size: 11px;
-  line-height: 1;
-  opacity: .4;
-  transition: opacity .15s;
-}
-.row-tag-rm:hover { opacity: 1; }
-.row-tag:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); }
 
 /* URL cell */
 .url-link {
@@ -735,18 +713,20 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
+  width: 28px;
   flex-shrink: 0;
-  background: var(--bg2);
-  color: var(--text2);
+  background: var(--bg4);
+  color: var(--text);
   border: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: bold;
   padding: 0;
   z-index: 2;
   height: 100%;
+  transition: background .15s;
 }
-.tab-arrow:hover { color: var(--text); background: var(--bg3); }
+.tab-arrow:hover { background: var(--border); }
 
 #tab-action {
   flex-shrink: 0;
@@ -761,7 +741,9 @@ body {
   padding: 0 6px;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  scrollbar-width: none;
+  cursor: grab;
 }
 #log-tabs:empty { display: none; }
 #log-tabs::-webkit-scrollbar { display: none; }

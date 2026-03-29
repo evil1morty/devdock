@@ -31,14 +31,15 @@ pub fn init_job_object() {
         let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
         if job.is_null() { return; }
 
-        // JOBOBJECT_BASIC_LIMIT_INFORMATION + IO_COUNTERS = extended info
+        // JOBOBJECT_EXTENDED_LIMIT_INFORMATION: 144 bytes on 64-bit, 112 on 32-bit
         // LimitFlags offset is 16 bytes in, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
-        let mut info = [0u8; 112]; // JOBOBJECT_EXTENDED_LIMIT_INFORMATION size
+        let mut info = [0u8; 144];
+        let info_len: u32 = if std::mem::size_of::<usize>() == 8 { 144 } else { 112 };
         let flags_ptr = info.as_mut_ptr().add(16) as *mut u32;
         *flags_ptr = 0x2000; // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
 
         // JobObjectExtendedLimitInformation = 9
-        SetInformationJobObject(job, 9, info.as_ptr(), info.len() as u32);
+        SetInformationJobObject(job, 9, info.as_ptr(), info_len);
 
         let _ = JOB_HANDLE.set(job as usize);
     }
@@ -83,10 +84,11 @@ fn create_process_job() -> Option<usize> {
     unsafe {
         let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
         if job.is_null() { return None; }
-        let mut info = [0u8; 112];
+        let mut info = [0u8; 144];
+        let info_len: u32 = if std::mem::size_of::<usize>() == 8 { 144 } else { 112 };
         let flags_ptr = info.as_mut_ptr().add(16) as *mut u32;
         *flags_ptr = 0x2000; // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-        SetInformationJobObject(job, 9, info.as_ptr(), info.len() as u32);
+        SetInformationJobObject(job, 9, info.as_ptr(), info_len);
         Some(job as usize)
     }
 }

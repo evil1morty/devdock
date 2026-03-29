@@ -89,22 +89,6 @@ function createRow(p) {
   nameWrap.appendChild(el('span', 'project-name', p.name));
   if (p.pinned && !missing) nameWrap.appendChild(el('span', 'pin-icon', '\u{1F4CC}'));
   if (p.framework) nameWrap.appendChild(el('span', 'framework-badge', p.framework));
-  if (p.tags && p.tags.length) {
-    p.tags.forEach(t => {
-      const chip = el('span', 'row-tag');
-      chip.appendChild(document.createTextNode(t));
-      const rm = el('span', 'row-tag-rm', '\u00d7');
-      rm.addEventListener('click', async e => {
-        e.stopPropagation();
-        p.tags = p.tags.filter(tag => tag !== t);
-        await api.saveConfig(state.projects);
-        render();
-        toast(`Tag "${t}" removed from ${p.name}`, 'info', 2500);
-      });
-      chip.appendChild(rm);
-      nameWrap.appendChild(chip);
-    });
-  }
   tdName.appendChild(nameWrap);
 
   if (missing) {
