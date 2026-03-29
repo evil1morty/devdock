@@ -51,7 +51,7 @@ export function openContextMenu(id, e) {
       moreBtn.appendChild(document.createTextNode(` ${overflow.length} more\u2026`));
       moreBtn.addEventListener('click', ev => {
         ev.stopPropagation();
-        toggle(moreWrap, false);
+        toggle(moreWrap, true);
         moreBtn.remove();
         // Reposition if menu overflows viewport
         const menuH = $ctx.offsetHeight;
