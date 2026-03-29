@@ -351,9 +351,9 @@ body {
   font-size: 11px;
   font-weight: 600;
   font-family: var(--sans);
-  background: var(--bg4);
-  color: var(--text2);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
   border-radius: 12px;
   cursor: pointer;
   transition: all .15s;
