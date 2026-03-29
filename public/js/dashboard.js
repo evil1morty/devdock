@@ -74,6 +74,7 @@ function createRow(p) {
   if (missing) cls += ' missing';
   else if (p.id === state.activeLogId) cls += ' active';
   if (p.pinned && !missing) cls += ' pinned';
+  if (s.running && !missing) cls += ' running';
   const tr = el('tr', cls);
   tr.dataset.id = p.id;
 
