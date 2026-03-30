@@ -174,7 +174,9 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
             try { await api.stopAll(id); } catch (_) {}
           }
           state.projects = state.projects.filter(p => p.id !== id);
+          delete state.statuses[id]; // clean up stale frontend status
           await api.saveConfig(state.projects);
+          api.purgeProject(id); // clean up stale Rust process entries + logs
           if (state.activeLogId === id) closeLogPanel();
           render();
           toast(`${removedName} removed`, 'warn', 3000);

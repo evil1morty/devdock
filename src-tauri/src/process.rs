@@ -542,3 +542,11 @@ pub fn kill_all(processes: &Arc<Mutex<HashMap<String, ProcessState>>>) {
         }
     }
 }
+
+/// Remove all process entries for a project (used when project is deleted).
+pub fn purge_project(id: &str, processes: &Arc<Mutex<HashMap<String, ProcessState>>>) {
+    let prefix = format!("{}::", id);
+    if let Ok(mut map) = processes.lock() {
+        map.retain(|key, _| !key.starts_with(&prefix));
+    }
+}

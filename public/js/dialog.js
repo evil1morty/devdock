@@ -40,6 +40,7 @@ export function openDialog(id) {
 }
 
 export function closeDialog() {
+  clearTimeout(scanDebounce);
   $overlay.classList.add('hidden');
   state.editingId = null;
 }

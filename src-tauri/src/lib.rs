@@ -105,6 +105,7 @@ pub fn run() {
             commands::start_process,
             commands::stop_process,
             commands::stop_all_processes,
+            commands::purge_project,
             commands::get_logs,
             commands::get_status,
             commands::get_all_status,

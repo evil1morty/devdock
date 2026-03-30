@@ -354,6 +354,11 @@ pub fn stop_all_processes(id: String, app: AppHandle, state: State<'_, AppState>
     process::stop_all(&id, &state.processes, &app)
 }
 
+#[tauri::command]
+pub fn purge_project(id: String, state: State<'_, AppState>) {
+    process::purge_project(&id, &state.processes);
+}
+
 // ── Status queries ─────────────────────────────────
 
 #[tauri::command]

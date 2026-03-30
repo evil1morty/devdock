@@ -14,6 +14,7 @@ export const api = {
   startProcess:    (id, command, label, cwd, env) => invoke('start_process', { id, command, label, cwd, env: env || [] }),
   stopProcess:     (id, label)     => invoke('stop_process', { id, label }),
   stopAll:         (id)            => invoke('stop_all_processes', { id }),
+  purgeProject:    (id)            => invoke('purge_project', { id }),
   pickFolder:      ()              => invoke('pick_folder'),
   scanProject:     (directory)     => invoke('scan_project', { directory }),
   openInExplorer:  (directory)     => invoke('open_in_explorer', { directory }),
