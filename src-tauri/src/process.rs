@@ -202,14 +202,19 @@ pub fn kill_tree(pid: u32) {
 
 // ── Log buffer ─────────────────────────────────────
 
+/// Push a log line. Returns `false` if the epoch no longer matches (stale reader).
 fn push_log(
     procs: &Arc<Mutex<HashMap<String, ProcessState>>>,
     key: &str,
     text: String,
     stream: &str,
-) {
+    epoch: u64,
+) -> bool {
     if let Ok(mut map) = procs.lock() {
         if let Some(ps) = map.get_mut(key) {
+            if ps.epoch != epoch {
+                return false; // stale reader — caller should stop
+            }
             ps.logs.push_back(LogLine {
                 text,
                 stream: stream.into(),
@@ -219,6 +224,7 @@ fn push_log(
             }
         }
     }
+    true
 }
 
 // ── Stream reader ──────────────────────────────────
@@ -234,6 +240,7 @@ fn spawn_reader(
     app: AppHandle,
     procs: Arc<Mutex<HashMap<String, ProcessState>>>,
     detect_urls: bool,
+    epoch: u64,
 ) {
     thread::spawn(move || {
         let reader = BufReader::new(stream);
@@ -244,6 +251,10 @@ fn spawn_reader(
                 if let Some((url, confidence)) = detect_url(&clean) {
                     if let Ok(mut map) = procs.lock() {
                         if let Some(ps) = map.get_mut(&key) {
+                            // Skip if process is no longer running or epoch changed
+                            if !ps.running || ps.epoch != epoch {
+                                break; // stale — stop reading
+                            }
                             let dominated = ps.detected_url.is_some()
                                 && confidence < ps.url_confidence;
                             let unchanged = ps.detected_url.as_ref() == Some(&url);
@@ -265,7 +276,10 @@ fn spawn_reader(
                 }
             }
 
-            push_log(&procs, &key, line.clone(), stream_name);
+            // push_log returns false if epoch changed (stale reader)
+            if !push_log(&procs, &key, line.clone(), stream_name, epoch) {
+                break;
+            }
             let _ = app.emit(
                 "process-log",
                 LogPayload {
@@ -365,7 +379,7 @@ pub fn start(
         spawn_reader(
             stdout, "stdout",
             key.clone(), id.clone(), label.clone(),
-            app.clone(), processes.clone(), true,
+            app.clone(), processes.clone(), true, epoch,
         );
     }
 
@@ -374,7 +388,7 @@ pub fn start(
         spawn_reader(
             stderr, "stderr",
             key.clone(), id.clone(), label.clone(),
-            app.clone(), processes.clone(), true,
+            app.clone(), processes.clone(), true, epoch,
         );
     }
 
@@ -426,27 +440,21 @@ pub fn stop(
     app: &AppHandle,
 ) -> Result<(), String> {
     let key = process_key(id, label);
-    let mut map = processes.lock().map_err(|e| e.to_string())?;
-    if let Some(ps) = map.get_mut(&key) {
-        if !ps.running {
-            return Err("Not running".into());
-        }
-        // Mark stopped immediately so the slot is available for a new start().
-        // Bump epoch so the old wait thread won't corrupt state.
+
+    // Phase 1: update state + emit event under lock, extract kill targets.
+    // Event is emitted inside the lock to guarantee ordering: a concurrent
+    // start() cannot emit "running:true" before our "running:false".
+    let (jh, pid) = {
+        let mut map = processes.lock().map_err(|e| e.to_string())?;
+        let ps = map.get_mut(&key).filter(|ps| ps.running)
+            .ok_or_else(|| "Not running".to_string())?;
         ps.running = false;
         ps.detected_url = None;
         ps.epoch += 1;
-        let pid = ps.pid.take();
-        // Prefer job termination — kills ALL descendants reliably
-        if let Some(jh) = ps.job_handle.take() {
-            terminate_job(jh);
-        } else if let Some(pid) = pid {
-            // Fallback to PID-based tree kill
-            kill_tree(pid);
-        } else {
+        let result = (ps.job_handle.take(), ps.pid.take());
+        if result.0.is_none() && result.1.is_none() {
             return Err("Not running".into());
         }
-        // Emit status immediately so frontend updates without waiting for wait thread
         let _ = app.emit(
             "process-status",
             StatusPayload {
@@ -456,9 +464,17 @@ pub fn stop(
                 url: None,
             },
         );
-        return Ok(());
+        result
+    }; // lock released
+
+    // Phase 2: kill outside the lock (kill_tree spawns taskkill and waits)
+    if let Some(jh) = jh {
+        terminate_job(jh);
     }
-    Err("Not running".into())
+    if let Some(pid) = pid {
+        kill_tree(pid);
+    }
+    Ok(())
 }
 
 /// Stop ALL running commands for a project.
@@ -468,40 +484,46 @@ pub fn stop_all(
     app: &AppHandle,
 ) -> Result<(), String> {
     let prefix = format!("{}::", id);
-    let mut map = processes.lock().map_err(|e| e.to_string())?;
-    let mut stopped_labels: Vec<String> = Vec::new();
-    for (key, ps) in map.iter_mut() {
-        if key.starts_with(&prefix) && ps.running {
-            // Mark stopped immediately and bump epoch
-            ps.running = false;
-            ps.detected_url = None;
-            ps.epoch += 1;
-            let pid = ps.pid.take();
-            if let Some(jh) = ps.job_handle.take() {
-                terminate_job(jh);
-            } else if let Some(pid) = pid {
-                kill_tree(pid);
-            }
-            // Extract label from key ("id::label")
-            if let Some(label) = key.strip_prefix(&prefix) {
-                stopped_labels.push(label.to_string());
+
+    // Phase 1: update state + emit events under lock, collect kill targets
+    let mut kill_targets: Vec<(Option<usize>, Option<u32>)> = Vec::new();
+    {
+        let mut map = processes.lock().map_err(|e| e.to_string())?;
+        for (key, ps) in map.iter_mut() {
+            if key.starts_with(&prefix) && ps.running {
+                ps.running = false;
+                ps.detected_url = None;
+                ps.epoch += 1;
+                let jh = ps.job_handle.take();
+                let pid = ps.pid.take();
+                kill_targets.push((jh, pid));
+                if let Some(label) = key.strip_prefix(&prefix) {
+                    let _ = app.emit(
+                        "process-status",
+                        StatusPayload {
+                            id: id.to_string(),
+                            label: label.to_string(),
+                            running: false,
+                            url: None,
+                        },
+                    );
+                }
             }
         }
-    }
-    if stopped_labels.is_empty() {
+    } // lock released
+
+    if kill_targets.is_empty() {
         return Err("Nothing running".into());
     }
-    // Emit status events outside the lock iteration
-    for label in stopped_labels {
-        let _ = app.emit(
-            "process-status",
-            StatusPayload {
-                id: id.to_string(),
-                label,
-                running: false,
-                url: None,
-            },
-        );
+
+    // Phase 2: kill outside the lock
+    for (jh, pid) in kill_targets {
+        if let Some(jh) = jh {
+            terminate_job(jh);
+        }
+        if let Some(pid) = pid {
+            kill_tree(pid);
+        }
     }
     Ok(())
 }
@@ -510,9 +532,11 @@ pub fn stop_all(
 pub fn kill_all(processes: &Arc<Mutex<HashMap<String, ProcessState>>>) {
     if let Ok(mut map) = processes.lock() {
         for ps in map.values_mut() {
+            // Belt-and-suspenders: try both kill methods
             if let Some(jh) = ps.job_handle.take() {
                 terminate_job(jh);
-            } else if let Some(pid) = ps.pid {
+            }
+            if let Some(pid) = ps.pid.take() {
                 kill_tree(pid);
             }
         }
