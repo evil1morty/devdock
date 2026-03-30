@@ -4,7 +4,7 @@ import { $ } from './js/dom.js';
 import { render, ensurePinnedOrder } from './js/dashboard.js';
 import { appendLog, updateLogHeader, updateLogTabs, closeLogPanel } from './js/logs.js';
 import { closeContextMenu, closeConfirm, showConfirm } from './js/context-menu.js';
-import { closeDialog } from './js/dialog.js';
+import { openDialog, closeDialog } from './js/dialog.js';
 import { applyTheme } from './js/settings.js';
 import { toast } from './js/toast.js';
 
@@ -79,6 +79,11 @@ async function init() {
 // ── Global keyboard shortcuts ──────────────────────
 
 document.addEventListener('keydown', e => {
+  // Zoom: Ctrl+Plus / Ctrl+Minus / Ctrl+0
+  if (e.ctrlKey && (e.key === '=' || e.key === '+')) { e.preventDefault(); setZoom(zoomLevel + ZOOM_STEP); return; }
+  if (e.ctrlKey && e.key === '-') { e.preventDefault(); setZoom(zoomLevel - ZOOM_STEP); return; }
+  if (e.ctrlKey && e.key === '0') { e.preventDefault(); setZoom(1.0); return; }
+
   if (e.key !== 'Escape') return;
   if (!$('dialog-overlay').classList.contains('hidden')) { closeDialog(); return; }
   if (!$('confirm-overlay').classList.contains('hidden')) { closeConfirm(); return; }
@@ -86,5 +91,35 @@ document.addEventListener('keydown', e => {
   if (!$('log-panel').classList.contains('hidden')) closeLogPanel();
   closeContextMenu();
 });
+
+// ── Right-click: edit on row, block elsewhere ─────
+
+document.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const row = e.target.closest('.project-row');
+  if (row && row.dataset.id) {
+    openDialog(row.dataset.id);
+  }
+});
+
+// ── Zoom (trackpad pinch + Ctrl+scroll) ───────────
+
+let zoomLevel = 1.0;
+const ZOOM_STEP = 0.1;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 2.0;
+
+function setZoom(level) {
+  zoomLevel = Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, level)) * 10) / 10;
+  document.documentElement.style.zoom = zoomLevel;
+}
+
+document.addEventListener('wheel', e => {
+  if (e.ctrlKey) {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+    setZoom(zoomLevel + delta);
+  }
+}, { passive: false });
 
 init();

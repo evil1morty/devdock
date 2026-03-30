@@ -1,6 +1,6 @@
 import { state, getProject, getStatus, getCmdStatus } from './state.js';
 import { api } from './api.js';
-import { $, el, btn, toggle, appendLogLine } from './dom.js';
+import { $, el, toggle, appendLogLine } from './dom.js';
 import { runCommand } from './dashboard.js';
 
 const $logPanel = $('log-panel');
@@ -10,7 +10,7 @@ const $logTabs  = $('log-tabs');
 const $logOut   = $('log-output');
 const $arrowL   = $('tab-arrow-left');
 const $arrowR   = $('tab-arrow-right');
-const $tabAction = $('tab-action');
+const $logRun    = $('log-run');
 
 // ── Open / Close ───────────────────────────────────
 
@@ -94,9 +94,11 @@ export function updateLogHeader() {
 
 export function updateLogTabs() {
   $logTabs.innerHTML = '';
-  $tabAction.innerHTML = '';
   const proj = getProject(state.activeLogId);
-  if (!proj) return;
+  if (!proj) {
+    toggle($logRun, false);
+    return;
+  }
 
   proj.commands.forEach(c => {
     const cs = getCmdStatus(proj.id, c.label);
@@ -126,19 +128,22 @@ export function updateLogTabs() {
     }
   });
 
-  // Action button — outside scrollable area so it's always visible
-  $tabAction.innerHTML = '';
+  // Start/Stop action button — in the log header with other buttons
   const cs = getCmdStatus(proj.id, state.activeLogTab);
   const cmd = proj.commands.find(c => c.label === state.activeLogTab);
 
   if (cs.running) {
-    $tabAction.appendChild(
-      btn('log-tab-action stop-action', '\u25A0', () => api.stopProcess(proj.id, state.activeLogTab))
-    );
+    $logRun.textContent = 'Stop';
+    $logRun.className = 'stop-state';
+    $logRun.title = 'Stop command';
+    $logRun.onclick = () => api.stopProcess(proj.id, state.activeLogTab);
   } else if (cmd) {
-    $tabAction.appendChild(
-      btn('log-tab-action run-action', '\u25B6', () => runCommand(proj.id, cmd.label, cmd.cmd, proj.directory, proj.env))
-    );
+    $logRun.textContent = 'Start';
+    $logRun.className = 'run-state';
+    $logRun.title = 'Start command';
+    $logRun.onclick = () => runCommand(proj.id, cmd.label, cmd.cmd, proj.directory, proj.env);
+  } else {
+    $logRun.className = 'hidden';
   }
 
   updateTabArrows();

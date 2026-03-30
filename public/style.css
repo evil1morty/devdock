@@ -741,6 +741,12 @@ body.is-dragging * {
 .log-actions button.copied { background: var(--green); color: #fff; border-color: var(--green); }
 .log-actions button.cleared { background: var(--yellow); color: #fff; border-color: var(--yellow); }
 
+/* Start/Stop button in log header */
+.log-actions .run-state { color: var(--green); border-color: var(--green); }
+.log-actions .run-state:hover { background: var(--green); color: #fff; }
+.log-actions .stop-state { color: var(--red); border-color: var(--red); }
+.log-actions .stop-state:hover { background: var(--red); color: #fff; }
+
 /* Command tabs in log panel */
 #log-tabs-wrap {
   display: flex;
@@ -772,11 +778,7 @@ body.is-dragging * {
 .tab-arrow:hover { background: var(--border); }
 
 #tab-action {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding-left: 6px;
-  padding-right: 8px;
+  display: none;
 }
 
 #log-tabs {
