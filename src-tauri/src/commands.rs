@@ -345,13 +345,13 @@ pub fn start_process(
 }
 
 #[tauri::command]
-pub fn stop_process(id: String, label: String, state: State<'_, AppState>) -> Result<(), String> {
-    process::stop(&id, &label, &state.processes)
+pub fn stop_process(id: String, label: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    process::stop(&id, &label, &state.processes, &app)
 }
 
 #[tauri::command]
-pub fn stop_all_processes(id: String, state: State<'_, AppState>) -> Result<(), String> {
-    process::stop_all(&id, &state.processes)
+pub fn stop_all_processes(id: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    process::stop_all(&id, &state.processes, &app)
 }
 
 // ── Status queries ─────────────────────────────────

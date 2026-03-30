@@ -159,10 +159,9 @@ export async function runCommand(id, label, cmd, cwd, env = []) {
   const cs = getCmdStatus(id, label);
   if (cs.running) {
     try { await api.stopProcess(id, label); } catch (_) {}
-    for (let i = 0; i < 50; i++) {
-      await new Promise(r => setTimeout(r, 100));
-      if (!getCmdStatus(id, label).running) break;
-    }
+    // stop() now marks running=false immediately and emits the event,
+    // but give a small grace period for the OS to release the port.
+    await new Promise(r => setTimeout(r, 300));
   }
 
   const $logOut = $('log-output');

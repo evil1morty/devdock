@@ -294,6 +294,7 @@ pub fn start(
     let key = process_key(&id, &label);
 
     // Mark as running (only checks THIS command slot, not other commands)
+    let epoch;
     {
         let mut map = processes.lock().map_err(|e| e.to_string())?;
         if let Some(ps) = map.get(&key) {
@@ -306,6 +307,8 @@ pub fn start(
         ps.running = true;
         ps.detected_url = None;
         ps.url_confidence = UrlConfidence::Normal;
+        ps.epoch += 1;
+        epoch = ps.epoch;
     }
 
     // Spawn
@@ -386,6 +389,12 @@ pub fn start(
         {
             let mut map = procs_c.lock().unwrap();
             if let Some(ps) = map.get_mut(&key_c) {
+                // Only clean up if this is still OUR process.
+                // A newer start() would have bumped the epoch, meaning
+                // this wait thread is stale and must not touch the state.
+                if ps.epoch != epoch {
+                    return; // stale — a newer process owns this slot
+                }
                 ps.running = false;
                 ps.pid = None;
                 ps.detected_url = None;
@@ -414,20 +423,40 @@ pub fn stop(
     id: &str,
     label: &str,
     processes: &Arc<Mutex<HashMap<String, ProcessState>>>,
+    app: &AppHandle,
 ) -> Result<(), String> {
     let key = process_key(id, label);
     let mut map = processes.lock().map_err(|e| e.to_string())?;
     if let Some(ps) = map.get_mut(&key) {
+        if !ps.running {
+            return Err("Not running".into());
+        }
+        // Mark stopped immediately so the slot is available for a new start().
+        // Bump epoch so the old wait thread won't corrupt state.
+        ps.running = false;
+        ps.detected_url = None;
+        ps.epoch += 1;
+        let pid = ps.pid.take();
         // Prefer job termination — kills ALL descendants reliably
         if let Some(jh) = ps.job_handle.take() {
             terminate_job(jh);
-            return Ok(());
-        }
-        // Fallback to PID-based tree kill
-        if let Some(pid) = ps.pid {
+        } else if let Some(pid) = pid {
+            // Fallback to PID-based tree kill
             kill_tree(pid);
-            return Ok(());
+        } else {
+            return Err("Not running".into());
         }
+        // Emit status immediately so frontend updates without waiting for wait thread
+        let _ = app.emit(
+            "process-status",
+            StatusPayload {
+                id: id.to_string(),
+                label: label.to_string(),
+                running: false,
+                url: None,
+            },
+        );
+        return Ok(());
     }
     Err("Not running".into())
 }
@@ -436,24 +465,45 @@ pub fn stop(
 pub fn stop_all(
     id: &str,
     processes: &Arc<Mutex<HashMap<String, ProcessState>>>,
+    app: &AppHandle,
 ) -> Result<(), String> {
     let prefix = format!("{}::", id);
     let mut map = processes.lock().map_err(|e| e.to_string())?;
-    let mut found = false;
+    let mut stopped_labels: Vec<String> = Vec::new();
     for (key, ps) in map.iter_mut() {
-        if key.starts_with(&prefix) {
+        if key.starts_with(&prefix) && ps.running {
+            // Mark stopped immediately and bump epoch
+            ps.running = false;
+            ps.detected_url = None;
+            ps.epoch += 1;
+            let pid = ps.pid.take();
             if let Some(jh) = ps.job_handle.take() {
                 terminate_job(jh);
-                found = true;
-            } else if let Some(pid) = ps.pid {
-                if ps.running {
-                    kill_tree(pid);
-                    found = true;
-                }
+            } else if let Some(pid) = pid {
+                kill_tree(pid);
+            }
+            // Extract label from key ("id::label")
+            if let Some(label) = key.strip_prefix(&prefix) {
+                stopped_labels.push(label.to_string());
             }
         }
     }
-    if found { Ok(()) } else { Err("Nothing running".into()) }
+    if stopped_labels.is_empty() {
+        return Err("Nothing running".into());
+    }
+    // Emit status events outside the lock iteration
+    for label in stopped_labels {
+        let _ = app.emit(
+            "process-status",
+            StatusPayload {
+                id: id.to_string(),
+                label,
+                running: false,
+                url: None,
+            },
+        );
+    }
+    Ok(())
 }
 
 /// Kill all tracked processes (used on app shutdown).

@@ -16,6 +16,7 @@ pub struct ProcessState {
     pub detected_url: Option<String>,
     pub url_confidence: UrlConfidence,
     pub job_handle: Option<usize>,  // per-process job object for reliable kill
+    pub epoch: u64,                 // generation counter — prevents stale wait threads from corrupting state
 }
 
 pub struct AppState {
