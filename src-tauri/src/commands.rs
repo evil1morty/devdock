@@ -471,6 +471,55 @@ pub fn open_in_editor(directory: String, editor: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn open_in_terminal(directory: String) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let escaped = directory.replace('\'', "''");
+        Command::new("cmd")
+            .args(["/C", "start", "powershell", "-NoExit", "-Command", &format!("Set-Location '{}'", escaped)])
+            .creation_flags(CREATE_NO_WINDOW_FLAG)
+            .stdout(Stdio::null())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .args(["-a", "Terminal", &directory])
+            .stdout(Stdio::null())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // Try common terminal emulators in order of preference
+        let terminals = ["x-terminal-emulator", "gnome-terminal", "konsole", "xfce4-terminal", "xterm"];
+        let mut launched = false;
+        for term in &terminals {
+            let result = if *term == "gnome-terminal" || *term == "xfce4-terminal" {
+                Command::new(term)
+                    .args(["--working-directory", &directory])
+                    .stdout(Stdio::null())
+                    .spawn()
+            } else {
+                Command::new(term)
+                    .current_dir(&directory)
+                    .stdout(Stdio::null())
+                    .spawn()
+            };
+            if result.is_ok() {
+                launched = true;
+                break;
+            }
+        }
+        if !launched {
+            return Err("No terminal emulator found".to_string());
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub fn open_in_claude(
     directory: String,
     claude_command: String,

@@ -25,6 +25,11 @@ fn show_window(win: &WebviewWindow) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(win) = app.get_webview_window("main") {
+                show_window(&win);
+            }
+        }))
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--minimized"]),
@@ -111,6 +116,7 @@ pub fn run() {
             commands::get_all_status,
             commands::open_in_explorer,
             commands::open_in_editor,
+            commands::open_in_terminal,
             commands::open_in_claude,
             commands::open_in_browser,
             commands::load_config,

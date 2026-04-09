@@ -19,6 +19,7 @@ export const api = {
   scanProject:     (directory)     => invoke('scan_project', { directory }),
   openInExplorer:  (directory)     => invoke('open_in_explorer', { directory }),
   openInEditor:    (directory, editor) => invoke('open_in_editor', { directory, editor }),
+  openInTerminal:  (directory)     => invoke('open_in_terminal', { directory }),
   openInClaude:    (directory, claudeCommand, mode, projectName) => invoke('open_in_claude', { directory, claudeCommand, mode, projectName }),
   openInBrowser:   (url)           => invoke('open_in_browser', { url }),
   forceClose:      ()              => invoke('force_close'),

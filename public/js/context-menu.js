@@ -86,6 +86,13 @@ export function openContextMenu(id, e) {
     editorLabel.textContent = 'Open in ' + editorCmd;
   }
 
+  // Update terminal label based on platform
+  const termLabel = $('terminal-label');
+  const platform = navigator.userAgent;
+  if (platform.includes('Win')) termLabel.textContent = 'Open in PowerShell';
+  else if (platform.includes('Mac')) termLabel.textContent = 'Open in Terminal';
+  else termLabel.textContent = 'Open in Terminal';
+
   // Update pin label
   const pinBtn = $ctx.querySelector('[data-action="pin"]');
   pinBtn.innerHTML = proj?.pinned
@@ -138,6 +145,9 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
         break;
       case 'editor':
         if (proj) api.openInEditor(proj.directory, state.settings.editor_command);
+        break;
+      case 'terminal':
+        if (proj) api.openInTerminal(proj.directory);
         break;
       case 'pin':
         if (proj) {
