@@ -32,37 +32,33 @@
       </div>
     </header>
 
-    <!-- Dashboard area: project list + tag cloud sidebar -->
+    <!-- Tag filter bar (top) -->
+    <div id="tag-bar" class="hidden">
+      <div id="tag-bar-list"></div>
+      <button id="tag-clear-btn" class="hidden" title="Clear filter">Clear &times;</button>
+    </div>
+
+    <!-- Dashboard table -->
     <div id="dashboard">
-      <div id="project-pane">
-        <table id="project-table">
-          <thead>
-            <tr>
-              <th class="col-status"></th>
-              <th class="col-name">Name</th>
-              <th class="col-url">URL</th>
-              <th class="col-quick">Actions</th>
-              <th class="col-dots"></th>
-            </tr>
-          </thead>
-          <tbody id="project-list"></tbody>
-        </table>
+      <table id="project-table">
+        <thead>
+          <tr>
+            <th class="col-status"></th>
+            <th class="col-name">Name</th>
+            <th class="col-tags">Tags</th>
+            <th class="col-url">URL</th>
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody id="project-list"></tbody>
+      </table>
 
-        <div id="empty" class="hidden">
-          <div class="empty-icon">&#128187;</div>
-          <p>No projects yet</p>
-          <p class="empty-sub">Add a project folder to get started</p>
-          <button id="btn-add-empty">+ Add Project</button>
-        </div>
+      <div id="empty" class="hidden">
+        <div class="empty-icon">&#128187;</div>
+        <p>No projects yet</p>
+        <p class="empty-sub">Add a project folder to get started</p>
+        <button id="btn-add-empty">+ Add Project</button>
       </div>
-
-      <aside id="tag-cloud" class="hidden">
-        <div id="tag-cloud-header">
-          <span>Tags</span>
-          <button id="tag-clear-btn" class="hidden" title="Clear filter">Clear &times;</button>
-        </div>
-        <div id="tag-cloud-list"></div>
-      </aside>
     </div>
 
     <!-- Log panel (slides up from bottom) -->

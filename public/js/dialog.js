@@ -88,6 +88,8 @@ function addTagFromSuggestion(tag) {
     dialogTags.push(tag);
     renderTagPills();
   }
+  // Clear the typed query so the partial match doesn't get committed on blur
+  $inpTag.value = '';
   renderTagSuggestions();
   $inpTag.focus();
 }

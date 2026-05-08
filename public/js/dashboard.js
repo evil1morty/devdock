@@ -11,8 +11,8 @@ const $empty       = $('empty');
 const $table       = $('project-table');
 const $search      = $('search');
 const $searchClear = $('search-clear');
-const $tagCloud    = $('tag-cloud');
-const $tagCloudList = $('tag-cloud-list');
+const $tagBar      = $('tag-bar');
+const $tagBarList  = $('tag-bar-list');
 const $tagClearBtn = $('tag-clear-btn');
 
 // ── Render ─────────────────────────────────────────
@@ -49,20 +49,16 @@ function renderTagBar() {
     state.activeTag = null;
   }
   if (allTags.length === 0) {
-    toggle($tagCloud, false);
+    toggle($tagBar, false);
     return;
   }
-  toggle($tagCloud, true);
-  $tagCloudList.innerHTML = '';
+  toggle($tagBar, true);
+  $tagBarList.innerHTML = '';
 
-  const maxCount = Math.max(...counts.values());
   allTags.forEach(tag => {
     const count = counts.get(tag);
     const chip = el('button', 'cloud-tag' + (state.activeTag === tag ? ' active' : ''));
     chip.style.setProperty('--tag-color', tagColor(tag));
-    // Frequency-weighted size: 11px \u2192 14px
-    const fs = 11 + Math.round((count / maxCount) * 3);
-    chip.style.setProperty('--cloud-fs', fs + 'px');
     chip.appendChild(document.createTextNode(tag));
     if (count > 1) {
       chip.appendChild(el('span', 'cloud-tag-count', String(count)));
@@ -71,7 +67,7 @@ function renderTagBar() {
       state.activeTag = state.activeTag === tag ? null : tag;
       render();
     });
-    $tagCloudList.appendChild(chip);
+    $tagBarList.appendChild(chip);
   });
 
   toggle($tagClearBtn, !!state.activeTag);
@@ -119,7 +115,7 @@ function createRow(p) {
 
   if (missing) {
     const tdRelocate = el('td');
-    tdRelocate.colSpan = 3;
+    tdRelocate.colSpan = 3; // tags + url + actions
     tdRelocate.style.textAlign = 'right';
     const relocateBtn = btn('relocate-btn', 'Relocate', async e => {
       e.stopPropagation();
@@ -141,6 +137,24 @@ function createRow(p) {
     return tr;
   }
 
+  // Tags column
+  const tdTags = el('td');
+  if (p.tags && p.tags.length) {
+    const tagsWrap = el('div', 'row-tags');
+    p.tags.forEach(t => {
+      const tagEl = el('span', 'row-tag' + (state.activeTag === t ? ' active' : ''), t);
+      tagEl.style.setProperty('--tag-color', tagColor(t));
+      tagEl.title = `Filter by ${t}`;
+      tagEl.addEventListener('click', e => {
+        e.stopPropagation();
+        state.activeTag = state.activeTag === t ? null : t;
+        render();
+      });
+      tagsWrap.appendChild(tagEl);
+    });
+    tdTags.appendChild(tagsWrap);
+  }
+
   // URL \u2014 entire cell is clickable for a bigger hit target
   const tdUrl = el('td', 'col-url-cell');
   if (s.url) {
@@ -152,8 +166,10 @@ function createRow(p) {
     tdUrl.appendChild(el('span', 'url-placeholder', s.running ? 'detecting...' : '\u2014'));
   }
 
-  // Play / Stop
-  const tdQuick = el('td');
+  // Right-side actions cluster: play + 3-dots together at the end
+  const tdActions = el('td', 'actions-cell');
+  const cluster = el('div', 'actions-cluster');
+
   const playBtn = btn('play-btn' + (s.running ? ' running' : ''), null, e => {
     e.stopPropagation();
     if (s.running) {
@@ -167,15 +183,15 @@ function createRow(p) {
   });
   playBtn.innerHTML = s.running ? '&#9632;' : '&#9654;';
   playBtn.title = s.running ? 'Stop all' : 'Start dev';
-  tdQuick.appendChild(playBtn);
+  cluster.appendChild(playBtn);
 
-  // 3-dot menu
-  const tdDots = el('td');
   const dots = btn('dots-btn', null, e => { e.stopPropagation(); openContextMenu(p.id, e); });
   dots.innerHTML = '&#8942;';
-  tdDots.appendChild(dots);
+  cluster.appendChild(dots);
 
-  tr.append(tdStatus, tdName, tdUrl, tdQuick, tdDots);
+  tdActions.appendChild(cluster);
+
+  tr.append(tdStatus, tdName, tdTags, tdUrl, tdActions);
   tr.addEventListener('click', () => openLogPanel(p.id));
   return tr;
 }
@@ -224,7 +240,7 @@ let _drag = null;
 
 function onRowPointerDown(e) {
   // Ignore if clicking interactive elements
-  if (e.target.closest('button, a, .play-btn, .dots-btn, .relocate-btn, .url-link, .col-url-cell.clickable, .pin-icon')) return;
+  if (e.target.closest('button, a, .play-btn, .dots-btn, .relocate-btn, .url-link, .col-url-cell.clickable, .pin-icon, .row-tag')) return;
   if (e.button !== 0) return; // left button only
 
   const tr = e.target.closest('.project-row');
