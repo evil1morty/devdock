@@ -12,6 +12,9 @@ const $cmdList  = $('cmd-list');
 const $envList  = $('env-list');
 const $tagWrap  = $('tag-input-wrap');
 const $inpTag   = $('inp-tag');
+const $tagSugg  = $('tag-suggestions');
+
+const MAX_SUGGESTIONS = 10;
 
 let dialogTags = [];  // tags for the current dialog session
 
@@ -28,6 +31,7 @@ export function openDialog(id) {
   dialogTags = proj && proj.tags ? [...proj.tags] : [];
   $inpTag.value = '';
   renderTagPills();
+  renderTagSuggestions();
 
   $cmdList.innerHTML = '';
   if (proj) proj.commands.forEach(c => addCmdRow(c.label, c.cmd));
@@ -60,6 +64,7 @@ function renderTagPills() {
       e.preventDefault();
       dialogTags = dialogTags.filter(t => t !== tag);
       renderTagPills();
+      renderTagSuggestions();
     });
     pill.appendChild(rm);
     // Insert pill directly into flex wrapper, before the input
@@ -75,13 +80,56 @@ function commitPendingTag() {
     renderTagPills();
   }
   $inpTag.value = '';
+  renderTagSuggestions();
 }
 
+function addTagFromSuggestion(tag) {
+  if (!dialogTags.includes(tag)) {
+    dialogTags.push(tag);
+    renderTagPills();
+  }
+  renderTagSuggestions();
+  $inpTag.focus();
+}
+
+function renderTagSuggestions() {
+  $tagSugg.innerHTML = '';
+  const filter = $inpTag.value.trim().toLowerCase();
+
+  // Collect existing tags from all projects, deduped, excluding ones already added
+  const allTags = [...new Set(state.projects.flatMap(p => p.tags || []))]
+    .filter(t => !dialogTags.includes(t))
+    .filter(t => !filter || t.includes(filter))
+    .sort()
+    .slice(0, MAX_SUGGESTIONS);
+
+  if (allTags.length === 0) {
+    $tagSugg.classList.add('hidden');
+    return;
+  }
+  $tagSugg.classList.remove('hidden');
+
+  allTags.forEach(tag => {
+    const chip = el('button', 'tag-suggest');
+    chip.type = 'button';
+    chip.style.setProperty('--tag-color', tagColor(tag));
+    chip.textContent = tag;
+    chip.addEventListener('mousedown', e => e.preventDefault()); // keep input focus
+    chip.addEventListener('click', e => {
+      e.preventDefault();
+      addTagFromSuggestion(tag);
+    });
+    $tagSugg.appendChild(chip);
+  });
+}
+
+$inpTag.addEventListener('input', renderTagSuggestions);
 $inpTag.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); commitPendingTag(); }
   if (e.key === 'Backspace' && !$inpTag.value && dialogTags.length) {
     dialogTags.pop();
     renderTagPills();
+    renderTagSuggestions();
   }
 });
 $inpTag.addEventListener('blur', commitPendingTag);

@@ -1090,6 +1090,41 @@ td.col-url-cell.clickable:hover .url-link {
 }
 .tag-pill-rm:hover { opacity: 1; }
 
+#tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+.tag-suggest {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--sans);
+  background: color-mix(in srgb, var(--tag-color) 10%, transparent);
+  color: var(--tag-color);
+  border: 1px dashed color-mix(in srgb, var(--tag-color) 45%, transparent);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .12s;
+  white-space: nowrap;
+}
+.tag-suggest::before {
+  content: "+";
+  margin-right: 3px;
+  opacity: .7;
+  font-weight: 700;
+}
+.tag-suggest:hover {
+  background: var(--tag-color);
+  color: #fff;
+  border-style: solid;
+  border-color: var(--tag-color);
+}
+.tag-suggest:hover::before { opacity: 1; }
+
 .input-row {
   display: flex;
   gap: 6px;
