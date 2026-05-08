@@ -461,9 +461,10 @@ body {
 }
 
 .col-status { width: 36px; }
-.col-tags { width: 1%; }
+.col-tags { width: 220px; }
 .col-url { width: 120px; }
 .col-actions { width: 80px; text-align: right; }
+#project-table th.col-actions { text-align: right; padding-right: 14px; }
 
 /* ── Project row ────────────────────────────────── */
 .project-row {
@@ -613,12 +614,13 @@ td.col-url-cell.clickable:hover .url-link {
   color: var(--text3);
 }
 
-/* Row tags */
+/* Row tags — fill horizontally first, wrap to next line only when out of room */
 .row-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  max-width: 200px;
+  justify-content: flex-start;
+  align-items: center;
 }
 .row-tag {
   display: inline-block;

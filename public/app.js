@@ -21,10 +21,10 @@ async function init() {
   // Check which project directories exist
   await checkProjectPaths();
 
-  // One-time migration: app got wider to fit the tag-cloud sidebar.
-  // Bump the saved width if it's still on the old narrow default.
-  if (!state.settings.width || state.settings.width < 720) {
-    state.settings.width = 760;
+  // One-time migration: trim the previous over-wide default down to 680
+  // (10% narrower) now that the tag column lives inside the table.
+  if (!state.settings.width || state.settings.width === 760 || state.settings.width < 600) {
+    state.settings.width = 680;
     try { await api.saveSettings(state.settings); } catch (_) {}
   }
 
@@ -38,7 +38,7 @@ async function init() {
   // Apply saved window size
   try {
     const win = window.__TAURI__.window.getCurrentWindow();
-    await win.setSize(new window.__TAURI__.window.LogicalSize(state.settings.width || 760, state.settings.height || 680));
+    await win.setSize(new window.__TAURI__.window.LogicalSize(state.settings.width || 680, state.settings.height || 680));
   } catch (_) {}
 
   render();

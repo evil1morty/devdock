@@ -51,12 +51,27 @@ export function closeOnBackdrop(overlay, closeFn) {
   });
 }
 
-/** Deterministic HSL color for a tag string (mid-saturation, mid-lightness) */
+// Curated, high-contrast palette (readable on both dark and light themes).
+const TAG_PALETTE = [
+  '#58a6ff', // blue
+  '#3fb950', // green
+  '#f78166', // orange
+  '#bc8cff', // purple
+  '#ec6cb9', // pink
+  '#39c5cf', // teal
+  '#e3b341', // yellow
+  '#ff7b72', // red
+  '#a371f7', // violet
+  '#56d364', // light green
+  '#ffa657', // amber
+  '#79c0ff', // sky
+];
+
+/** Deterministic color for a tag string from the curated palette */
 export function tagColor(tag) {
   let h = 0;
   for (let i = 0; i < tag.length; i++) {
     h = (h * 31 + tag.charCodeAt(i)) >>> 0;
   }
-  const hue = h % 360;
-  return `hsl(${hue} 65% 58%)`;
+  return TAG_PALETTE[h % TAG_PALETTE.length];
 }

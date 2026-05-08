@@ -20,7 +20,7 @@
       </span>
       <div class="header-actions">
         <div class="search-wrap">
-          <input type="text" id="search" placeholder="Search..." />
+          <input type="text" id="search" placeholder="Search..." autocomplete="off" spellcheck="false" />
           <button id="search-clear" class="hidden" title="Clear search" aria-label="Clear search">&times;</button>
         </div>
         <button id="btn-add" title="Add project">
@@ -47,7 +47,7 @@
             <th class="col-name">Name</th>
             <th class="col-tags">Tags</th>
             <th class="col-url">URL</th>
-            <th class="col-actions"></th>
+            <th class="col-actions">Action</th>
           </tr>
         </thead>
         <tbody id="project-list"></tbody>
