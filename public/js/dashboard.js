@@ -1,16 +1,19 @@
 import { state, getStatus, getCmdStatus, checkProjectPaths } from './state.js';
 import { api } from './api.js';
-import { $, el, btn, toggle, appendLogLine } from './dom.js';
+import { $, el, btn, toggle, appendLogLine, tagColor } from './dom.js';
 import { openContextMenu } from './context-menu.js';
 import { openLogPanel } from './logs.js';
 import { openDialog } from './dialog.js';
 import { toast } from './toast.js';
 
-const $list   = $('project-list');
-const $empty  = $('empty');
-const $table  = $('project-table');
-const $search = $('search');
-const $tagBar = $('tag-bar');
+const $list        = $('project-list');
+const $empty       = $('empty');
+const $table       = $('project-table');
+const $search      = $('search');
+const $searchClear = $('search-clear');
+const $tagCloud    = $('tag-cloud');
+const $tagCloudList = $('tag-cloud-list');
+const $tagClearBtn = $('tag-clear-btn');
 
 // ── Render ─────────────────────────────────────────
 
@@ -37,35 +40,47 @@ export function render() {
 }
 
 function renderTagBar() {
-  const allTags = [...new Set(state.projects.flatMap(p => p.tags || []))].sort();
-  if (state.activeTag && !allTags.includes(state.activeTag)) {
+  const counts = new Map();
+  for (const p of state.projects) {
+    for (const t of (p.tags || [])) counts.set(t, (counts.get(t) || 0) + 1);
+  }
+  const allTags = [...counts.keys()].sort();
+  if (state.activeTag && !counts.has(state.activeTag)) {
     state.activeTag = null;
   }
   if (allTags.length === 0) {
-    toggle($tagBar, false);
+    toggle($tagCloud, false);
     return;
   }
-  toggle($tagBar, true);
-  $tagBar.innerHTML = '';
+  toggle($tagCloud, true);
+  $tagCloudList.innerHTML = '';
 
+  const maxCount = Math.max(...counts.values());
   allTags.forEach(tag => {
-    const chip = el('button', 'tag-chip' + (state.activeTag === tag ? ' active' : ''), tag);
+    const count = counts.get(tag);
+    const chip = el('button', 'cloud-tag' + (state.activeTag === tag ? ' active' : ''));
+    chip.style.setProperty('--tag-color', tagColor(tag));
+    // Frequency-weighted size: 11px \u2192 14px
+    const fs = 11 + Math.round((count / maxCount) * 3);
+    chip.style.setProperty('--cloud-fs', fs + 'px');
+    chip.appendChild(document.createTextNode(tag));
+    if (count > 1) {
+      chip.appendChild(el('span', 'cloud-tag-count', String(count)));
+    }
     chip.addEventListener('click', () => {
       state.activeTag = state.activeTag === tag ? null : tag;
       render();
     });
-    $tagBar.appendChild(chip);
+    $tagCloudList.appendChild(chip);
   });
 
-  if (state.activeTag) {
-    const clear = el('button', 'tag-clear', '\u00d7 Clear');
-    clear.addEventListener('click', () => {
-      state.activeTag = null;
-      render();
-    });
-    $tagBar.appendChild(clear);
-  }
+  toggle($tagClearBtn, !!state.activeTag);
 }
+
+$tagClearBtn.addEventListener('click', () => {
+  state.activeTag = null;
+  render();
+});
 
 function createRow(p) {
   const s = getStatus(p.id);
@@ -86,7 +101,19 @@ function createRow(p) {
   const tdName = el('td');
   const nameWrap = el('div', 'name-cell');
   nameWrap.appendChild(el('span', 'project-name', p.name));
-  if (p.pinned && !missing) nameWrap.appendChild(el('span', 'pin-icon', '\u{1F4CC}'));
+  if (p.pinned && !missing) {
+    const pinSpan = el('span', 'pin-icon', '\u{1F4CC}');
+    pinSpan.title = 'Click to unpin';
+    pinSpan.addEventListener('click', e => {
+      e.stopPropagation();
+      p.pinned = false;
+      ensurePinnedOrder();
+      api.saveConfig(state.projects);
+      render();
+      toast(`${p.name} unpinned`, 'info', 2000);
+    });
+    nameWrap.appendChild(pinSpan);
+  }
   if (p.framework) nameWrap.appendChild(el('span', 'framework-badge', p.framework));
   tdName.appendChild(nameWrap);
 
@@ -114,12 +141,13 @@ function createRow(p) {
     return tr;
   }
 
-  // URL
-  const tdUrl = el('td');
+  // URL \u2014 entire cell is clickable for a bigger hit target
+  const tdUrl = el('td', 'col-url-cell');
   if (s.url) {
-    const link = el('span', 'url-link', s.url.replace('http://', ''));
-    link.addEventListener('click', e => { e.stopPropagation(); api.openInBrowser(s.url); });
-    tdUrl.appendChild(link);
+    tdUrl.classList.add('clickable');
+    tdUrl.title = s.url;
+    tdUrl.appendChild(el('span', 'url-link', s.url.replace('http://', '')));
+    tdUrl.addEventListener('click', e => { e.stopPropagation(); api.openInBrowser(s.url); });
   } else {
     tdUrl.appendChild(el('span', 'url-placeholder', s.running ? 'detecting...' : '\u2014'));
   }
@@ -196,7 +224,7 @@ let _drag = null;
 
 function onRowPointerDown(e) {
   // Ignore if clicking interactive elements
-  if (e.target.closest('button, a, .play-btn, .dots-btn, .relocate-btn, .url-link')) return;
+  if (e.target.closest('button, a, .play-btn, .dots-btn, .relocate-btn, .url-link, .col-url-cell.clickable, .pin-icon')) return;
   if (e.button !== 0) return; // left button only
 
   const tr = e.target.closest('.project-row');
@@ -346,4 +374,16 @@ $list.addEventListener('pointerdown', onRowPointerDown);
 
 // ── Search ─────────────────────────────────────────
 
-$search.addEventListener('input', render);
+function updateSearchClear() {
+  toggle($searchClear, $search.value.length > 0);
+}
+$search.addEventListener('input', () => {
+  updateSearchClear();
+  render();
+});
+$searchClear.addEventListener('click', () => {
+  $search.value = '';
+  updateSearchClear();
+  render();
+  $search.focus();
+});

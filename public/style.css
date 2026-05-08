@@ -138,18 +138,24 @@ body {
   gap: 8px;
 }
 
+.search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 160px;
+  max-width: 360px;
+}
 #search {
   height: 30px;
-  padding: 0 10px;
+  padding: 0 28px 0 10px;
   font-size: 12px;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   outline: none;
-  flex: 1;
-  min-width: 100px;
-  max-width: 240px;
+  width: 100%;
   font-family: var(--sans);
   transition: border .15s, box-shadow .15s;
 }
@@ -157,6 +163,27 @@ body {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(88, 166, 255, .25);
 }
+#search-clear {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: var(--bg4);
+  color: var(--text2);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all .12s;
+}
+#search-clear:hover { background: var(--red); color: #fff; }
 
 #btn-add {
   background: var(--accent);
@@ -334,64 +361,103 @@ body {
 }
 .settings-about a:hover { text-decoration: underline; }
 
-/* ── Tag bar ───────────────────────────────────── */
-#tag-bar {
+/* ── Tag cloud sidebar ─────────────────────────── */
+#tag-cloud {
+  width: 180px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#tag-cloud-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: var(--bg2);
+  justify-content: space-between;
+  padding: 10px 12px 8px;
   border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text3);
   flex-shrink: 0;
-  flex-wrap: wrap;
 }
+#tag-clear-btn {
+  background: none;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  font-family: var(--sans);
+  transition: opacity .12s;
+}
+#tag-clear-btn:hover { opacity: .7; }
+#tag-cloud-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+}
+#tag-cloud-list::-webkit-scrollbar { width: 5px; }
+#tag-cloud-list::-webkit-scrollbar-track { background: transparent; }
+#tag-cloud-list::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
 
-.tag-chip {
+.cloud-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 3px 10px;
-  font-size: 11px;
+  font-size: var(--cloud-fs, 11px);
   font-weight: 600;
   font-family: var(--sans);
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  background: color-mix(in srgb, var(--tag-color) 15%, transparent);
+  color: var(--tag-color);
+  border: 1px solid color-mix(in srgb, var(--tag-color) 30%, transparent);
   border-radius: 12px;
   cursor: pointer;
   transition: all .15s;
   white-space: nowrap;
 }
-.tag-chip:hover {
-  background: var(--accent);
+.cloud-tag:hover,
+.cloud-tag.active {
+  background: var(--tag-color);
   color: #fff;
-  border-color: var(--accent);
+  border-color: var(--tag-color);
 }
-.tag-chip.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+.cloud-tag-count {
+  font-size: 9px;
+  opacity: .7;
+  font-weight: 500;
 }
-.tag-clear {
-  padding: 3px 10px;
-  font-size: 11px;
-  font-family: var(--sans);
-  background: none;
-  color: var(--text3);
-  border: 1px solid transparent;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: color .15s;
-}
-.tag-clear:hover { color: var(--red); }
+.cloud-tag.active .cloud-tag-count,
+.cloud-tag:hover .cloud-tag-count { opacity: .9; }
 
 /* ── Dashboard ──────────────────────────────────── */
 #dashboard {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: row;
   min-height: 0;
   transition: filter .2s;
 }
 #dashboard.blurred {
   filter: blur(2px);
   cursor: pointer;
+}
+#project-pane {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
 }
 
 #project-table {
@@ -431,7 +497,19 @@ body {
 .project-row:hover { background: var(--bg3); }
 .project-row.active { background: var(--bg3); }
 .project-row.pinned { background: var(--bg2); }
-.pin-icon { font-size: 11px; color: var(--text3); margin-left: 4px; }
+.pin-icon {
+  font-size: 11px;
+  color: var(--text3);
+  margin-left: 4px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all .12s;
+}
+.pin-icon:hover {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+}
 .project-row.running {
   background: color-mix(in srgb, var(--green) 5%, transparent);
 }
@@ -536,18 +614,23 @@ body.is-dragging * {
 }
 
 /* URL cell */
+td.col-url-cell.clickable {
+  cursor: pointer;
+}
+td.col-url-cell.clickable:hover .url-link {
+  text-decoration: underline;
+}
 .url-link {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--accent);
   text-decoration: none;
-  cursor: pointer;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  pointer-events: none;
 }
-.url-link:hover { text-decoration: underline; }
 .url-placeholder {
   font-size: 11px;
   color: var(--text3);
@@ -993,7 +1076,7 @@ body.is-dragging * {
   font-size: 11px;
   font-weight: 600;
   font-family: var(--sans);
-  background: var(--accent);
+  background: var(--tag-color, var(--accent));
   color: #fff;
   border-radius: 10px;
   white-space: nowrap;
@@ -1142,9 +1225,9 @@ body.is-dragging * {
 }
 
 /* ── Scrollbars ─────────────────────────────────── */
-#dashboard::-webkit-scrollbar,
+#project-pane::-webkit-scrollbar,
 #cmd-list::-webkit-scrollbar { width: 5px; }
-#dashboard::-webkit-scrollbar-track,
+#project-pane::-webkit-scrollbar-track,
 #cmd-list::-webkit-scrollbar-track { background: transparent; }
-#dashboard::-webkit-scrollbar-thumb,
+#project-pane::-webkit-scrollbar-thumb,
 #cmd-list::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }

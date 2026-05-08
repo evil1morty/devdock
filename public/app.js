@@ -21,6 +21,13 @@ async function init() {
   // Check which project directories exist
   await checkProjectPaths();
 
+  // One-time migration: app got wider to fit the tag-cloud sidebar.
+  // Bump the saved width if it's still on the old narrow default.
+  if (!state.settings.width || state.settings.width < 720) {
+    state.settings.width = 760;
+    try { await api.saveSettings(state.settings); } catch (_) {}
+  }
+
   // Show version in settings
   try {
     const ver = await window.__TAURI__.app.getVersion();
@@ -31,10 +38,13 @@ async function init() {
   // Apply saved window size
   try {
     const win = window.__TAURI__.window.getCurrentWindow();
-    await win.setSize(new window.__TAURI__.window.LogicalSize(state.settings.width || 520, state.settings.height || 680));
+    await win.setSize(new window.__TAURI__.window.LogicalSize(state.settings.width || 760, state.settings.height || 680));
   } catch (_) {}
 
   render();
+
+  // Auto-rescan all projects in the background to refresh commands/framework
+  autoRescan();
 
   await listen('process-log', e => {
     const { id, label, text, stream } = e.payload;
@@ -121,5 +131,31 @@ document.addEventListener('wheel', e => {
     setZoom(zoomLevel + delta);
   }
 }, { passive: false });
+
+async function autoRescan() {
+  let changed = false;
+  await Promise.allSettled(
+    state.projects
+      .filter(p => !state.missingPaths.has(p.id))
+      .map(async p => {
+        try {
+          const scan = await api.scanProject(p.directory);
+          if (scan.commands && scan.commands.length > 0) {
+            const before = JSON.stringify(p.commands);
+            const after = JSON.stringify(scan.commands);
+            if (before !== after) { p.commands = scan.commands; changed = true; }
+          }
+          if (scan.framework && scan.framework !== p.framework) {
+            p.framework = scan.framework;
+            changed = true;
+          }
+        } catch (_) {}
+      })
+  );
+  if (changed) {
+    try { await api.saveConfig(state.projects); } catch (_) {}
+    render();
+  }
+}
 
 init();

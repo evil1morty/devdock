@@ -50,3 +50,13 @@ export function closeOnBackdrop(overlay, closeFn) {
     if (e.target === overlay) closeFn();
   });
 }
+
+/** Deterministic HSL color for a tag string (mid-saturation, mid-lightness) */
+export function tagColor(tag) {
+  let h = 0;
+  for (let i = 0; i < tag.length; i++) {
+    h = (h * 31 + tag.charCodeAt(i)) >>> 0;
+  }
+  const hue = h % 360;
+  return `hsl(${hue} 65% 58%)`;
+}

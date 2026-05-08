@@ -12,9 +12,9 @@
       {
         "title": "OneRun",
         "label": "main",
-        "width": 520,
+        "width": 760,
         "height": 680,
-        "minWidth": 420,
+        "minWidth": 600,
         "minHeight": 500,
         "resizable": true,
         "decorations": true,

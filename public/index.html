@@ -19,7 +19,10 @@
         OneRun
       </span>
       <div class="header-actions">
-        <input type="text" id="search" placeholder="Search..." />
+        <div class="search-wrap">
+          <input type="text" id="search" placeholder="Search..." />
+          <button id="search-clear" class="hidden" title="Clear search" aria-label="Clear search">&times;</button>
+        </div>
         <button id="btn-add" title="Add project">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
@@ -29,30 +32,37 @@
       </div>
     </header>
 
-    <!-- Tag filter bar (shown when tags exist) -->
-    <div id="tag-bar" class="hidden"></div>
-
-    <!-- Dashboard table -->
+    <!-- Dashboard area: project list + tag cloud sidebar -->
     <div id="dashboard">
-      <table id="project-table">
-        <thead>
-          <tr>
-            <th class="col-status"></th>
-            <th class="col-name">Name</th>
-            <th class="col-url">URL</th>
-            <th class="col-quick">Actions</th>
-            <th class="col-dots"></th>
-          </tr>
-        </thead>
-        <tbody id="project-list"></tbody>
-      </table>
+      <div id="project-pane">
+        <table id="project-table">
+          <thead>
+            <tr>
+              <th class="col-status"></th>
+              <th class="col-name">Name</th>
+              <th class="col-url">URL</th>
+              <th class="col-quick">Actions</th>
+              <th class="col-dots"></th>
+            </tr>
+          </thead>
+          <tbody id="project-list"></tbody>
+        </table>
 
-      <div id="empty" class="hidden">
-        <div class="empty-icon">&#128187;</div>
-        <p>No projects yet</p>
-        <p class="empty-sub">Add a project folder to get started</p>
-        <button id="btn-add-empty">+ Add Project</button>
+        <div id="empty" class="hidden">
+          <div class="empty-icon">&#128187;</div>
+          <p>No projects yet</p>
+          <p class="empty-sub">Add a project folder to get started</p>
+          <button id="btn-add-empty">+ Add Project</button>
+        </div>
       </div>
+
+      <aside id="tag-cloud" class="hidden">
+        <div id="tag-cloud-header">
+          <span>Tags</span>
+          <button id="tag-clear-btn" class="hidden" title="Clear filter">Clear &times;</button>
+        </div>
+        <div id="tag-cloud-list"></div>
+      </aside>
     </div>
 
     <!-- Log panel (slides up from bottom) -->

@@ -1,6 +1,6 @@
 import { state, checkProjectPaths } from './state.js';
 import { api } from './api.js';
-import { $, el, btn, closeOnBackdrop } from './dom.js';
+import { $, el, btn, closeOnBackdrop, tagColor } from './dom.js';
 import { render } from './dashboard.js';
 import { toast } from './toast.js';
 
@@ -52,6 +52,7 @@ function renderTagPills() {
   $tagWrap.querySelectorAll('.tag-pill').forEach(p => p.remove());
   dialogTags.forEach(tag => {
     const pill = el('span', 'tag-pill');
+    pill.style.setProperty('--tag-color', tagColor(tag));
     pill.appendChild(document.createTextNode(tag));
     const rm = el('span', 'tag-pill-rm', '\u00d7');
     rm.addEventListener('click', e => {

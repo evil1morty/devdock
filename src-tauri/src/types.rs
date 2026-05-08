@@ -44,7 +44,7 @@ pub struct Settings {
 }
 
 fn default_claude_mode() -> String { "tab".into() }
-fn default_width() -> u32 { 520 }
+fn default_width() -> u32 { 760 }
 fn default_height() -> u32 { 680 }
 
 impl Default for Settings {
@@ -54,7 +54,7 @@ impl Default for Settings {
             claude_mode: "tab".into(),
             editor_command: "code".into(),
             theme: "system".into(),
-            width: 520,
+            width: 760,
             height: 680,
             autostart: false,
         }
