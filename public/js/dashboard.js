@@ -1,6 +1,6 @@
 import { state, getStatus, getCmdStatus, checkProjectPaths } from './state.js';
 import { api } from './api.js';
-import { $, el, btn, toggle, appendLogLine, tagColor } from './dom.js';
+import { $, el, btn, toggle, appendLogLine, tagColor, rebuildTagColors } from './dom.js';
 import { openContextMenu } from './context-menu.js';
 import { openLogPanel } from './logs.js';
 import { openDialog } from './dialog.js';
@@ -18,6 +18,7 @@ const $tagClearBtn = $('tag-clear-btn');
 // ── Render ─────────────────────────────────────────
 
 export function render() {
+  rebuildTagColors(state.projects.flatMap(p => p.tags || []));
   renderTagBar();
 
   if (state.projects.length === 0) {

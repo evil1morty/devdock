@@ -65,10 +65,29 @@ const TAG_PALETTE = [
   '#56d364', // light green
   '#ffa657', // amber
   '#79c0ff', // sky
+  '#ff9e64', // peach
+  '#9ece6a', // lime
+  '#f7768e', // rose
+  '#7dcfff', // cyan
 ];
 
-/** Deterministic color for a tag string from the curated palette */
+let _tagColorMap = new Map();
+
+/** Rebuild the deterministic tag→color map so each known tag gets a
+ *  distinct palette slot (assigned alphabetically). Call whenever the
+ *  set of project tags changes. */
+export function rebuildTagColors(tags) {
+  const sorted = [...new Set(tags)].sort();
+  _tagColorMap = new Map();
+  sorted.forEach((tag, i) => {
+    _tagColorMap.set(tag, TAG_PALETTE[i % TAG_PALETTE.length]);
+  });
+}
+
+/** Color for a tag — uses the rebuilt map, falling back to a stable hash. */
 export function tagColor(tag) {
+  const cached = _tagColorMap.get(tag);
+  if (cached) return cached;
   let h = 0;
   for (let i = 0; i < tag.length; i++) {
     h = (h * 31 + tag.charCodeAt(i)) >>> 0;
