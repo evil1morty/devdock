@@ -441,9 +441,10 @@ pub fn stop(
 ) -> Result<(), String> {
     let key = process_key(id, label);
 
-    // Phase 1: update state + emit event under lock, extract kill targets.
-    // Event is emitted inside the lock to guarantee ordering: a concurrent
-    // start() cannot emit "running:true" before our "running:false".
+    // Phase 1: flip state under lock and extract kill targets. We DO NOT emit
+    // the status event yet — the UI must keep showing "Stop" until the process
+    // is actually dead and the port is released, otherwise the user can click
+    // Start before the OS releases the listening socket.
     let (jh, pid) = {
         let mut map = processes.lock().map_err(|e| e.to_string())?;
         let ps = map.get_mut(&key).filter(|ps| ps.running)
@@ -455,15 +456,6 @@ pub fn stop(
         if result.0.is_none() && result.1.is_none() {
             return Err("Not running".into());
         }
-        let _ = app.emit(
-            "process-status",
-            StatusPayload {
-                id: id.to_string(),
-                label: label.to_string(),
-                running: false,
-                url: None,
-            },
-        );
         result
     }; // lock released
 
@@ -474,6 +466,18 @@ pub fn stop(
     if let Some(pid) = pid {
         kill_tree(pid);
     }
+
+    // Phase 3: now emit "running:false" — the process is dead, port is released,
+    // so it's safe for the UI to flip the button to "Start".
+    let _ = app.emit(
+        "process-status",
+        StatusPayload {
+            id: id.to_string(),
+            label: label.to_string(),
+            running: false,
+            url: None,
+        },
+    );
     Ok(())
 }
 
@@ -485,8 +489,10 @@ pub fn stop_all(
 ) -> Result<(), String> {
     let prefix = format!("{}::", id);
 
-    // Phase 1: update state + emit events under lock, collect kill targets
-    let mut kill_targets: Vec<(Option<usize>, Option<u32>)> = Vec::new();
+    // Phase 1: flip state under lock, collect kill targets and labels for later
+    // emit. Status events are deferred until after the kill so the UI button
+    // doesn't flip to "Start" before the port is actually released.
+    let mut kill_targets: Vec<(String, Option<usize>, Option<u32>)> = Vec::new();
     {
         let mut map = processes.lock().map_err(|e| e.to_string())?;
         for (key, ps) in map.iter_mut() {
@@ -496,18 +502,8 @@ pub fn stop_all(
                 ps.epoch += 1;
                 let jh = ps.job_handle.take();
                 let pid = ps.pid.take();
-                kill_targets.push((jh, pid));
-                if let Some(label) = key.strip_prefix(&prefix) {
-                    let _ = app.emit(
-                        "process-status",
-                        StatusPayload {
-                            id: id.to_string(),
-                            label: label.to_string(),
-                            running: false,
-                            url: None,
-                        },
-                    );
-                }
+                let label = key.strip_prefix(&prefix).unwrap_or("").to_string();
+                kill_targets.push((label, jh, pid));
             }
         }
     } // lock released
@@ -517,13 +513,26 @@ pub fn stop_all(
     }
 
     // Phase 2: kill outside the lock
-    for (jh, pid) in kill_targets {
+    for (_, jh, pid) in &kill_targets {
         if let Some(jh) = jh {
-            terminate_job(jh);
+            terminate_job(*jh);
         }
         if let Some(pid) = pid {
-            kill_tree(pid);
+            kill_tree(*pid);
         }
+    }
+
+    // Phase 3: now that processes are dead and ports released, emit status
+    for (label, _, _) in kill_targets {
+        let _ = app.emit(
+            "process-status",
+            StatusPayload {
+                id: id.to_string(),
+                label,
+                running: false,
+                url: None,
+            },
+        );
     }
     Ok(())
 }
