@@ -200,7 +200,7 @@ body {
 }
 #btn-add:hover { opacity: .85; }
 
-#btn-settings {
+#btn-settings, #btn-theme {
   background: var(--bg3);
   color: var(--text2);
   border: 1px solid var(--border);
@@ -213,7 +213,7 @@ body {
   justify-content: center;
   transition: all .15s;
 }
-#btn-settings:hover { color: var(--text); background: var(--bg4); }
+#btn-settings:hover, #btn-theme:hover { color: var(--text); background: var(--bg4); }
 
 /* ── Settings dialog ───────────────────────────── */
 #settings-overlay {

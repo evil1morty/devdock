@@ -31,11 +31,19 @@ function closeSettings() {
 // ── Apply theme ────────────────────────────────────
 
 export function applyTheme(theme) {
+  let effective;
   if (theme === 'system') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    effective = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   } else {
-    document.body.setAttribute('data-theme', theme);
+    effective = theme;
+  }
+  document.body.setAttribute('data-theme', effective);
+  // Toggle icon: show sun while in light mode (click → dark), moon in dark mode.
+  const sun  = $('theme-icon-sun');
+  const moon = $('theme-icon-moon');
+  if (sun && moon) {
+    sun.classList.toggle('hidden', effective === 'dark');
+    moon.classList.toggle('hidden', effective !== 'dark');
   }
 }
 
@@ -72,6 +80,15 @@ $('about-github').addEventListener('click', (e) => {
 });
 
 $('btn-settings').addEventListener('click', openSettings);
+
+$('btn-theme').addEventListener('click', async () => {
+  // Resolve current effective theme (handles "system"), then flip it.
+  const cur = document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const next = cur === 'dark' ? 'light' : 'dark';
+  state.settings.theme = next;
+  applyTheme(next);
+  try { await api.saveSettings(state.settings); } catch (_) {}
+});
 $('settings-cancel').addEventListener('click', closeSettings);
 closeOnBackdrop($overlay, closeSettings);
 
