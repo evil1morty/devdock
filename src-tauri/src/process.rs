@@ -356,12 +356,30 @@ pub fn start(
         assign_pid_to_job(jh, pid);
     }
 
-    {
+    // Race check: a concurrent stop() can land between our epoch bump and this
+    // pid write — it would see running=true but pid+jh both None, flip
+    // running=false, and bump the epoch. Without this guard the child we just
+    // spawned would have nothing tracking it (orphan port-holder).
+    let race_lost = {
         let mut map = processes.lock().unwrap();
-        if let Some(ps) = map.get_mut(&key) {
-            ps.pid = Some(pid);
-            ps.job_handle = proc_job;
+        match map.get_mut(&key) {
+            Some(ps) if ps.epoch == epoch && ps.running => {
+                ps.pid = Some(pid);
+                ps.job_handle = proc_job;
+                false
+            }
+            _ => true,
         }
+    };
+
+    if race_lost {
+        if let Some(jh) = proc_job {
+            terminate_job(jh);
+        }
+        kill_tree(pid);
+        // Reap so the dead child doesn't linger as a zombie on Unix.
+        thread::spawn(move || { let _ = child.wait(); });
+        return Err("Start cancelled by concurrent stop".into());
     }
 
     let _ = app.emit(

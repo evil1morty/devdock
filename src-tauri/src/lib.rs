@@ -81,6 +81,14 @@ pub fn run() {
                                 let _ = win.emit("confirm-close", ());
                             }
                         } else {
+                            // Even with no tracked running processes, a child may have
+                            // been spawned milliseconds ago and not yet recorded in the
+                            // state map. On Windows the global JOB_HANDLE kills it on
+                            // exit; on Linux/macOS there is no equivalent, so we kill
+                            // explicitly to avoid orphaned dev servers.
+                            if let Some(s) = app.try_state::<AppState>() {
+                                process::kill_all(&s.processes);
+                            }
                             app.exit(0);
                         }
                     }
