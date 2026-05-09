@@ -39,6 +39,21 @@ export function getCmdStatus(id, label) {
   return state.statuses[id]?.[label] || { running: false, url: null };
 }
 
+/** Stop any running process whose label is not in newLabels.
+ *  Used before rewriting a project's commands list (rescan, save, relocate)
+ *  so renamed/removed commands don't leave orphan processes holding ports
+ *  that the UI can no longer access. */
+export async function stopOrphanCommands(id, newLabels) {
+  const cmds = state.statuses[id] || {};
+  const keep = new Set(newLabels);
+  const orphans = Object.entries(cmds)
+    .filter(([label, s]) => s.running && !keep.has(label))
+    .map(([label]) => label);
+  for (const label of orphans) {
+    try { await api.stopProcess(id, label); } catch (_) {}
+  }
+}
+
 /** Check which project directories exist and update missingPaths */
 export async function checkProjectPaths() {
   const paths = state.projects.map(p => p.directory);

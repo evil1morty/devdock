@@ -1,4 +1,4 @@
-import { state, checkProjectPaths } from './state.js';
+import { state, checkProjectPaths, stopOrphanCommands } from './state.js';
 import { api } from './api.js';
 import { $, el, btn, closeOnBackdrop, tagColor } from './dom.js';
 import { render } from './dashboard.js';
@@ -324,7 +324,16 @@ $('btn-save').addEventListener('click', async () => {
   const tags = [...dialogTags];
   if (state.editingId) {
     const proj = state.projects.find(p => p.id === state.editingId);
-    if (proj) Object.assign(proj, { name, directory: dir, commands, env, framework, tags });
+    if (proj) {
+      // If labels were renamed/removed, kill those processes first — otherwise
+      // they survive in the Rust state map under a key the UI no longer shows,
+      // holding their ports with no way to stop them.
+      // Same goes for changing cwd: a running child still uses the old path.
+      const dirChanged = proj.directory !== dir;
+      const newLabels = dirChanged ? [] : commands.map(c => c.label);
+      await stopOrphanCommands(state.editingId, newLabels);
+      Object.assign(proj, { name, directory: dir, commands, env, framework, tags });
+    }
   } else {
     state.projects.push({ id: crypto.randomUUID(), name, directory: dir, framework, commands, env, tags, pinned: false });
   }

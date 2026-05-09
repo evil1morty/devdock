@@ -1,4 +1,4 @@
-import { state, getProject, getStatus, getCmdStatus } from './state.js';
+import { state, getProject, getStatus, getCmdStatus, stopOrphanCommands } from './state.js';
 import { api } from './api.js';
 import { $, el, btn, toggle, closeOnBackdrop } from './dom.js';
 import { render, runCommand, ensurePinnedOrder } from './dashboard.js';
@@ -164,7 +164,12 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
         if (proj) {
           try {
             const scan = await api.scanProject(proj.directory);
-            if (scan.commands.length > 0) proj.commands = scan.commands;
+            if (scan.commands.length > 0) {
+              // Kill any running command whose label is being removed,
+              // otherwise it becomes an orphan process holding a port.
+              await stopOrphanCommands(id, scan.commands.map(c => c.label));
+              proj.commands = scan.commands;
+            }
             if (scan.framework) proj.framework = scan.framework;
             await api.saveConfig(state.projects);
             render();
@@ -180,13 +185,17 @@ $ctx.querySelectorAll('.ctx-item').forEach(b => {
       case 'remove':
         showConfirm(`Remove "${proj?.name}"?`, async () => {
           const removedName = proj?.name;
+          // Must finish stopping (and killing) before purge — otherwise the
+          // child process keeps holding its port with no UI to stop it.
+          // stop_all_processes now awaits the kill, so on success the children
+          // are dead by the time it returns.
           if (s.running) {
-            try { await api.stopAll(id); } catch (_) {}
+            try { await api.stopAll(id); } catch (_) { /* "Nothing running" is fine */ }
           }
           state.projects = state.projects.filter(p => p.id !== id);
           delete state.statuses[id]; // clean up stale frontend status
           await api.saveConfig(state.projects);
-          api.purgeProject(id); // clean up stale Rust process entries + logs
+          await api.purgeProject(id); // clean up stale Rust process entries + logs
           if (state.activeLogId === id) closeLogPanel();
           render();
           toast(`${removedName} removed`, 'warn', 3000);

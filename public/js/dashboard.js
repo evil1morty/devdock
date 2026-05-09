@@ -122,6 +122,12 @@ function createRow(p) {
       e.stopPropagation();
       const folder = await api.pickFolder();
       if (folder) {
+        // If anything is still running from the old (now-missing) path, kill
+        // it before remapping — its cwd would otherwise be stale and it would
+        // keep holding its port with no obvious link to the relocated project.
+        if (getStatus(p.id).running) {
+          try { await api.stopAll(p.id); } catch (_) {}
+        }
         p.directory = folder;
         try {
           const scan = await api.scanProject(folder);
@@ -200,13 +206,12 @@ function createRow(p) {
 // ── Run command (shared) ───────────────────────────
 
 export async function runCommand(id, label, cmd, cwd, env = []) {
-  // Only stop if the SAME command is already running (restart)
+  // Only stop if the SAME command is already running (restart).
+  // stop_process now awaits the kill, so the port is released by the time
+  // it returns — no extra grace period needed.
   const cs = getCmdStatus(id, label);
   if (cs.running) {
     try { await api.stopProcess(id, label); } catch (_) {}
-    // stop() now marks running=false immediately and emits the event,
-    // but give a small grace period for the OS to release the port.
-    await new Promise(r => setTimeout(r, 300));
   }
 
   const $logOut = $('log-output');
