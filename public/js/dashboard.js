@@ -37,7 +37,6 @@ export function render() {
 
   const filter = $search.value.toLowerCase().trim();
   const activeTags = state.activeTags;
-  let shown = 0;
   state.projects.forEach(p => {
     // Special tag: 'hidden' excludes the project entirely from the table.
     if ((p.tags || []).includes(HIDDEN_TAG)) return;
@@ -45,15 +44,7 @@ export function render() {
         && !(p.tags || []).some(t => t.toLowerCase().includes(filter))) return;
     if (activeTags.size > 0 && !(p.tags || []).some(t => activeTags.has(t))) return;
     $list.appendChild(createRow(p));
-    shown++;
   });
-
-  // If filters wiped out everything but projects exist, keep table visible (empty rows).
-  if (shown === 0 && state.projects.length > 0 && activeTags.size === 0 && !filter) {
-    // All projects are hidden via the special tag — show empty state.
-    toggle($table, false);
-    toggle($empty, true);
-  }
 }
 
 /** Sort tags by saved order; new tags go at the end alphabetically. */

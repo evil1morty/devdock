@@ -2,7 +2,7 @@ import { state, checkProjectPaths, getProject } from './js/state.js';
 import { api, listen } from './js/api.js';
 import { $ } from './js/dom.js';
 import { render, ensurePinnedOrder } from './js/dashboard.js';
-import { appendLog, updateLogHeader, updateLogTabs, closeLogPanel } from './js/logs.js';
+import { appendLog, appendLogMarker, updateLogHeader, updateLogTabs, closeLogPanel } from './js/logs.js';
 import { closeContextMenu, closeConfirm, showConfirm } from './js/context-menu.js';
 import { openDialog, closeDialog } from './js/dialog.js';
 import { applyTheme } from './js/settings.js';
@@ -67,6 +67,11 @@ async function init() {
       toast(`${name} → ${label} started`, 'success', 3000);
     } else if (!running && wasRunning) {
       toast(`${name} → ${label} stopped`, 'warn', 3000);
+      // Drop a divider line in the log so the user can see at a glance
+      // that the command is done — running output won't keep scrolling.
+      if (id === state.activeLogId && label === state.activeLogTab) {
+        appendLogMarker(label);
+      }
     }
   });
 

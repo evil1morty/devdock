@@ -85,6 +85,26 @@ export function appendLog(text, stream) {
   appendLogLine($logOut, text, stream);
 }
 
+/** Append a divider line marking that the process finished.
+ *  Live-only (not persisted); helps the user tell the command has ended
+ *  without needing to read every output line. */
+export function appendLogMarker(label) {
+  const empty = $logOut.querySelector('.log-empty');
+  if (empty) empty.remove();
+
+  // Collapse consecutive end markers (e.g. multiple stop signals).
+  const last = $logOut.lastElementChild;
+  if (last && last.classList.contains('log-marker')) return;
+
+  const time = new Date().toLocaleTimeString([], { hour12: false });
+  const div = el('div', 'log-line log-marker');
+  div.textContent = `> ${label} finished at ${time}`;
+  $logOut.appendChild(div);
+
+  const nearBottom = $logOut.scrollHeight - $logOut.scrollTop - $logOut.clientHeight < 80;
+  if (nearBottom) $logOut.scrollTop = $logOut.scrollHeight;
+}
+
 // ── Header & tab bar ───────────────────────────────
 
 export function updateLogHeader() {

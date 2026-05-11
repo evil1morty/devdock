@@ -1028,6 +1028,14 @@ body.tags-hidden .col-tags-cell { display: none; }
 .log-line { color: var(--text2); }
 .log-line.stderr { color: var(--red); }
 .log-line.info { color: var(--text3); font-style: italic; }
+.log-line.log-marker {
+  color: var(--text3);
+  font-style: italic;
+  border-top: 1px dashed var(--border);
+  margin-top: 6px;
+  padding-top: 6px;
+  letter-spacing: .3px;
+}
 
 .log-empty {
   color: var(--text3);
