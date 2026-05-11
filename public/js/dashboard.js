@@ -57,6 +57,11 @@ function sortedTags(allTags) {
 }
 
 function renderTagBar() {
+  // Don't rebuild while a drag is in progress — it would orphan the dragged
+  // chip and clobber the user's in-flight reorder. Status events fire often
+  // and would otherwise race the drag.
+  if (_tagDrag && _tagDrag.active) return;
+
   if (!state.settings.tags_visible) {
     toggle($tagBar, false);
     return;
