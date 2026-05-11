@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { api } from './api.js';
 import { $, closeOnBackdrop } from './dom.js';
+import { render } from './dashboard.js';
 
 const $overlay    = $('settings-overlay');
 const $claude     = $('set-claude');
@@ -80,6 +81,13 @@ $('about-github').addEventListener('click', (e) => {
 });
 
 $('btn-settings').addEventListener('click', openSettings);
+
+$('btn-toggle-tags').addEventListener('click', async () => {
+  const next = state.settings.tags_visible === false ? true : false;
+  state.settings.tags_visible = next;
+  render();
+  try { await api.saveSettings(state.settings); } catch (_) {}
+});
 
 $('btn-theme').addEventListener('click', async () => {
   // Resolve current effective theme (handles "system"), then flip it.

@@ -200,7 +200,7 @@ body {
 }
 #btn-add:hover { opacity: .85; }
 
-#btn-settings, #btn-theme {
+#btn-settings, #btn-theme, #btn-toggle-tags {
   background: var(--bg3);
   color: var(--text2);
   border: 1px solid var(--border);
@@ -213,7 +213,9 @@ body {
   justify-content: center;
   transition: all .15s;
 }
-#btn-settings:hover, #btn-theme:hover { color: var(--text); background: var(--bg4); }
+#btn-settings:hover, #btn-theme:hover, #btn-toggle-tags:hover { color: var(--text); background: var(--bg4); }
+#btn-toggle-tags.off { color: var(--text3); opacity: .55; }
+#btn-toggle-tags.off:hover { opacity: 1; color: var(--text2); }
 
 /* ── Settings dialog ───────────────────────────── */
 #settings-overlay {
@@ -417,6 +419,13 @@ body {
   color: #fff;
   border-color: var(--tag-color);
 }
+.cloud-tag.tag-dragging {
+  opacity: .55;
+  outline: 2px dashed var(--tag-color);
+  outline-offset: 2px;
+}
+body.is-dragging-tag,
+body.is-dragging-tag * { cursor: grabbing !important; }
 .cloud-tag-count {
   font-size: 9px;
   opacity: .7;
@@ -710,25 +719,47 @@ td.col-url-cell.clickable:hover .url-link {
 .play-btn:hover { opacity: .7; }
 .play-btn.running { color: var(--red); }
 
-/* Relocate button (missing path) */
-.relocate-btn {
+/* Relocate / Delete buttons (missing path) */
+.missing-actions {
+  display: inline-flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.relocate-btn, .delete-btn {
   padding: 3px 12px;
   font-size: 11px;
   font-weight: 600;
   font-family: var(--sans);
-  background: color-mix(in srgb, var(--orange) 12%, transparent);
-  color: var(--orange);
-  border: 1px solid color-mix(in srgb, var(--orange) 30%, transparent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all .15s;
   white-space: nowrap;
+}
+.relocate-btn {
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+  color: var(--orange);
+  border: 1px solid color-mix(in srgb, var(--orange) 30%, transparent);
 }
 .relocate-btn:hover {
   background: var(--orange);
   color: #fff;
   border-color: var(--orange);
 }
+.delete-btn {
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+  color: var(--red);
+  border: 1px solid color-mix(in srgb, var(--red) 30%, transparent);
+}
+.delete-btn:hover {
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+}
+
+/* Tags hidden globally (toggle in header) */
+body.tags-hidden #tag-bar { display: none !important; }
+body.tags-hidden .col-tags,
+body.tags-hidden .col-tags-cell { display: none; }
 
 .input-error { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }
 

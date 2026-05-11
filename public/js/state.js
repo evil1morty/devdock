@@ -8,7 +8,7 @@ export const state = {
   activeLogTab: null,  // which command tab is selected
   ctxProjectId: null,  // context menu target
   editingId: null,     // dialog: null = add, string = edit
-  activeTag: null,     // tag filter: null = show all
+  activeTags: new Set(),    // tag filter: empty = show all; multi-select with ctrl/cmd-click
   missingPaths: new Set(),  // project IDs whose directory doesn't exist
   settings: {
     claude_command: 'claude',
@@ -18,6 +18,8 @@ export const state = {
     width: 520,
     height: 680,
     autostart: false,
+    tag_order: [],
+    tags_visible: true,
   },
 };
 

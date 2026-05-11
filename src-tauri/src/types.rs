@@ -41,11 +41,16 @@ pub struct Settings {
     pub height: u32,
     #[serde(default)]
     pub autostart: bool,
+    #[serde(default)]
+    pub tag_order: Vec<String>,
+    #[serde(default = "default_tags_visible")]
+    pub tags_visible: bool,
 }
 
 fn default_claude_mode() -> String { "tab".into() }
 fn default_width() -> u32 { 580 }
 fn default_height() -> u32 { 680 }
+fn default_tags_visible() -> bool { true }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -57,6 +62,8 @@ impl Default for Settings {
             width: 580,
             height: 680,
             autostart: false,
+            tag_order: Vec::new(),
+            tags_visible: true,
         }
     }
 }
