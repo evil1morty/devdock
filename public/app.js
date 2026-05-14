@@ -131,21 +131,24 @@ document.addEventListener('wheel', e => {
 }, { passive: false });
 
 // ── Persist window size when user resizes ─────────
+// Skips minimized / phantom 0-size events so we don't overwrite the
+// real saved size with whatever Windows reports during minimize.
 let _sizeSaveTimer = null;
 window.addEventListener('resize', () => {
   clearTimeout(_sizeSaveTimer);
   _sizeSaveTimer = setTimeout(async () => {
     try {
       const win = window.__TAURI__.window.getCurrentWindow();
+      if (await win.isMinimized()) return;
       const size = await win.outerSize();
       const scale = await win.scaleFactor();
       const w = Math.round(size.width / scale);
       const h = Math.round(size.height / scale);
-      if (w !== state.settings.width || h !== state.settings.height) {
-        state.settings.width = w;
-        state.settings.height = h;
-        try { await api.saveSettings(state.settings); } catch (_) {}
-      }
+      if (w < 200 || h < 200) return;
+      if (w === state.settings.width && h === state.settings.height) return;
+      state.settings.width = w;
+      state.settings.height = h;
+      try { await api.saveSettings(state.settings); } catch (_) {}
     } catch (_) {}
   }, 400);
 });

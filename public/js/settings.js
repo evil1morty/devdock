@@ -21,6 +21,12 @@ export async function openSettings() {
 }
 
 function closeSettings() {
+  // Flush any pending debounced save so the user doesn't lose a final keystroke.
+  if (_saveTimer) {
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
+    persist();
+  }
   $overlay.classList.add('hidden');
 }
 
