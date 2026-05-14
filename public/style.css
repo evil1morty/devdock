@@ -256,11 +256,14 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text2);
-  width: 32px;
   height: 32px;
+  padding: 0 12px 0 8px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--sans);
   cursor: pointer;
   transition: border-color .15s, color .15s, background .15s;
 }

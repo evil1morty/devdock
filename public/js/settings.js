@@ -40,12 +40,19 @@ export function applyTheme(theme) {
     effective = theme;
   }
   document.body.setAttribute('data-theme', effective);
-  // Toggle icon: show sun while in light mode (click → dark), moon in dark mode.
-  const sun  = $('theme-icon-sun');
-  const moon = $('theme-icon-moon');
-  if (sun && moon) {
-    sun.classList.toggle('hidden', effective === 'dark');
-    moon.classList.toggle('hidden', effective !== 'dark');
+  // Icon reflects the SETTING (light / dark / system), not the resolved theme.
+  const sun    = $('theme-icon-sun');
+  const moon   = $('theme-icon-moon');
+  const system = $('theme-icon-system');
+  if (sun && moon && system) {
+    sun.classList.toggle('hidden',    theme !== 'light');
+    moon.classList.toggle('hidden',   theme !== 'dark');
+    system.classList.toggle('hidden', theme !== 'system');
+  }
+  const btn = $('btn-theme');
+  if (btn) {
+    const label = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'System';
+    btn.title = `Theme: ${label} (click to cycle)`;
   }
 }
 
@@ -103,9 +110,10 @@ $('btn-toggle-tags').addEventListener('click', async () => {
 });
 
 $('btn-theme').addEventListener('click', async () => {
-  // Resolve current effective theme (handles "system"), then flip it.
-  const cur = document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-  const next = cur === 'dark' ? 'light' : 'dark';
+  // Cycle through light → dark → system → light…
+  const order = ['light', 'dark', 'system'];
+  const cur = state.settings.theme || 'system';
+  const next = order[(order.indexOf(cur) + 1) % order.length];
   state.settings.theme = next;
   applyTheme(next);
   try { await api.saveSettings(state.settings); } catch (_) {}
