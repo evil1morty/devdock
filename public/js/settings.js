@@ -1,16 +1,14 @@
 import { state } from './state.js';
 import { api } from './api.js';
-import { $, closeOnBackdrop } from './dom.js';
+import { $ } from './dom.js';
 import { render } from './dashboard.js';
 
 const $overlay    = $('settings-overlay');
 const $claude     = $('set-claude');
 const $claudeMode = $('set-claude-mode');
 const $editor     = $('set-editor');
-const $theme      = $('set-theme');
-const $width      = $('set-width');
-const $height     = $('set-height');
 const $autostart  = $('set-autostart');
+const $savedPill  = $('settings-saved-pill');
 
 // ── Open / Close ───────────────────────────────────
 
@@ -18,9 +16,6 @@ export async function openSettings() {
   $claude.value     = state.settings.claude_command;
   $claudeMode.value = state.settings.claude_mode || 'window';
   $editor.value     = state.settings.editor_command;
-  $theme.value      = state.settings.theme;
-  $width.value  = state.settings.width || 520;
-  $height.value = state.settings.height || 680;
   try { $autostart.checked = await api.getAutostart(); } catch (_) { $autostart.checked = false; }
   $overlay.classList.remove('hidden');
 }
@@ -29,7 +24,7 @@ function closeSettings() {
   $overlay.classList.add('hidden');
 }
 
-// ── Apply theme ────────────────────────────────────
+// ── Apply theme (header toggle + system listener) ──
 
 export function applyTheme(theme) {
   let effective;
@@ -48,31 +43,43 @@ export function applyTheme(theme) {
   }
 }
 
-// ── Apply window size ──────────────────────────────
+// ── Auto-save ──────────────────────────────────────
 
-async function applySize(w, h) {
+let _saveTimer = null;
+let _pillTimer = null;
+
+function flashSaved() {
+  if (!$savedPill) return;
+  $savedPill.classList.add('show');
+  clearTimeout(_pillTimer);
+  _pillTimer = setTimeout(() => $savedPill.classList.remove('show'), 900);
+}
+
+async function persist() {
+  state.settings.claude_command = $claude.value.trim() || 'claude';
+  state.settings.claude_mode    = $claudeMode.value;
+  state.settings.editor_command = $editor.value.trim() || 'code';
+  state.settings.autostart      = $autostart.checked;
   try {
-    const win = window.__TAURI__.window.getCurrentWindow();
-    await win.setSize(new window.__TAURI__.window.LogicalSize(w, h));
+    await api.saveSettings(state.settings);
+    try { await api.setAutostart($autostart.checked); } catch (_) {}
+    flashSaved();
   } catch (_) {}
 }
+
+function scheduleSave() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(persist, 350);
+}
+
+[$claude, $editor].forEach(el => el.addEventListener('input', scheduleSave));
+$claudeMode.addEventListener('change', persist);
+$autostart.addEventListener('change', persist);
 
 // ── Events ─────────────────────────────────────────
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (state.settings.theme === 'system') applyTheme('system');
-});
-
-// +/- buttons for number inputs
-document.querySelectorAll('.num-btn').forEach(b => {
-  b.addEventListener('click', () => {
-    const input = $(b.dataset.target);
-    const step = parseInt(input.step) || 10;
-    const dir = parseInt(b.dataset.dir);
-    const min = parseInt(input.min) || 0;
-    const max = parseInt(input.max) || 9999;
-    input.value = Math.min(max, Math.max(min, (parseInt(input.value) || 0) + step * dir));
-  });
 });
 
 $('about-github').addEventListener('click', (e) => {
@@ -97,31 +104,5 @@ $('btn-theme').addEventListener('click', async () => {
   applyTheme(next);
   try { await api.saveSettings(state.settings); } catch (_) {}
 });
+
 $('settings-cancel').addEventListener('click', closeSettings);
-closeOnBackdrop($overlay, closeSettings);
-
-$('settings-reset').addEventListener('click', () => {
-  $claude.value     = 'claude';
-  $claudeMode.value = 'tab';
-  $editor.value     = 'code';
-  $theme.value      = 'system';
-  $width.value  = 520;
-  $height.value = 680;
-  $autostart.checked = false;
-});
-
-$('settings-save').addEventListener('click', async () => {
-  state.settings.claude_command = $claude.value.trim() || 'claude';
-  state.settings.claude_mode = $claudeMode.value;
-  state.settings.editor_command = $editor.value.trim() || 'code';
-  state.settings.theme = $theme.value;
-  state.settings.width = parseInt($width.value) || 520;
-  state.settings.height = parseInt($height.value) || 680;
-  state.settings.autostart = $autostart.checked;
-
-  await api.saveSettings(state.settings);
-  try { await api.setAutostart($autostart.checked); } catch (_) {}
-  applyTheme(state.settings.theme);
-  await applySize(state.settings.width, state.settings.height);
-  closeSettings();
-});

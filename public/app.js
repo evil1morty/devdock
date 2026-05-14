@@ -21,12 +21,6 @@ async function init() {
   // Check which project directories exist
   await checkProjectPaths();
 
-  // One-time migration: shrink past defaults down to the new 580 default.
-  if (!state.settings.width || state.settings.width === 760 || state.settings.width === 680) {
-    state.settings.width = 580;
-    try { await api.saveSettings(state.settings); } catch (_) {}
-  }
-
   // Show version in settings
   try {
     const ver = await window.__TAURI__.app.getVersion();
@@ -135,6 +129,26 @@ document.addEventListener('wheel', e => {
     setZoom(zoomLevel + delta);
   }
 }, { passive: false });
+
+// ── Persist window size when user resizes ─────────
+let _sizeSaveTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_sizeSaveTimer);
+  _sizeSaveTimer = setTimeout(async () => {
+    try {
+      const win = window.__TAURI__.window.getCurrentWindow();
+      const size = await win.outerSize();
+      const scale = await win.scaleFactor();
+      const w = Math.round(size.width / scale);
+      const h = Math.round(size.height / scale);
+      if (w !== state.settings.width || h !== state.settings.height) {
+        state.settings.width = w;
+        state.settings.height = h;
+        try { await api.saveSettings(state.settings); } catch (_) {}
+      }
+    } catch (_) {}
+  }, 400);
+});
 
 async function autoRescan() {
   let changed = false;
