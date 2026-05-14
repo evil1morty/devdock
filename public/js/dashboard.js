@@ -116,7 +116,7 @@ function renderTagBar() {
   toggle($tagClearBtn, state.activeTags.size > 0);
 }
 
-/** Apply the saved tags_visible setting to the tag column + tag bar. */
+/** Apply the saved tags_visible setting to the top tag bar only (row tags stay). */
 function applyTagsVisibility() {
   const visible = state.settings.tags_visible !== false;
   document.body.classList.toggle('tags-hidden', !visible);

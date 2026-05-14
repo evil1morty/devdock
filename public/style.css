@@ -756,10 +756,8 @@ td.col-url-cell.clickable:hover .url-link {
   border-color: var(--red);
 }
 
-/* Tags hidden globally (toggle in header) */
+/* Tags toggle hides only the top tag bar; row tags in the table stay visible. */
 body.tags-hidden #tag-bar { display: none !important; }
-body.tags-hidden .col-tags,
-body.tags-hidden .col-tags-cell { display: none; }
 
 .input-error { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red); }
 
