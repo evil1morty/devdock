@@ -192,12 +192,15 @@
   <div id="settings-overlay" class="hidden">
     <div class="settings-shell">
       <header class="settings-header">
-        <button id="settings-cancel" class="settings-back" title="Back" aria-label="Back">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span>Done</span>
-        </button>
+        <div class="settings-header-side settings-header-left">
+          <button id="settings-cancel" class="settings-back" title="Close settings" aria-label="Close settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
         <h2>Settings</h2>
-        <span id="settings-saved-pill" class="saved-pill">Saved</span>
+        <div class="settings-header-side settings-header-right">
+          <span id="settings-saved-pill" class="saved-pill">Saved</span>
+        </div>
       </header>
 
       <div class="settings-body">

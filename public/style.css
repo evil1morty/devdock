@@ -237,9 +237,9 @@ body {
 }
 
 .settings-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 12px;
   padding: 14px 20px;
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
@@ -249,28 +249,33 @@ body {
   font-size: 16px;
   font-weight: 600;
   color: var(--text);
-  flex: 1;
+  text-align: center;
+  justify-self: center;
 }
+.settings-header-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-header-left  { justify-self: start; }
+.settings-header-right { justify-self: end; }
+
 .settings-back {
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text2);
-  height: 32px;
-  padding: 0 12px 0 8px;
+  border: none;
+  color: var(--text3);
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: var(--sans);
+  justify-content: center;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: border-color .15s, color .15s, background .15s;
+  transition: color .15s, background .15s;
 }
 .settings-back:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text);
+  background: var(--bg4);
 }
 
 .saved-pill {

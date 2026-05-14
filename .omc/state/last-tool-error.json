@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"ls \\\"C:\\\\Users\\\\hp\\\\Documents\\\\claude\\\\projects\\\\manager\\\\src-tauri\\\\icons\\\" 2>$null; ls \\\"C:\\\\Users\\\\hp\\\\Documents\\\\claude\\\\projects\\\\manager\\\\src-tauri\\\" | findstr /i icon\",\"description\"...",
-  "error": "Exit code 1\n/usr/bin/bash: line 1: $null: ambiguous redirect\nFINDSTR: Cannot open icon",
-  "timestamp": "2026-05-14T02:01:50.411Z",
-  "retry_count": 1
-}
